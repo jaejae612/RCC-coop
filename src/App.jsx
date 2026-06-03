@@ -6,6 +6,10 @@ import LoginPage from './pages/auth/LoginPage'
 import SetupAccountPage from './pages/auth/SetupAccountPage'
 import DashboardPage from './pages/admin/DashboardPage'
 import MembersPage from './pages/admin/MembersPage'
+import ContributionsPage from './pages/admin/ContributionsPage'
+import LoansPage from './pages/admin/LoansPage'
+import RepaymentsPage from './pages/admin/RepaymentsPage'
+import InterestPage from './pages/admin/InterestPage'
 import Placeholder from './pages/Placeholder'
 
 const roleHome = {
@@ -57,10 +61,10 @@ export default function App() {
           <Route path="/admin" element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="members" element={<MembersPage />} />
-            <Route path="contributions" element={<Placeholder title="Contributions" />} />
-            <Route path="loans" element={<Placeholder title="Loans" />} />
-            <Route path="repayments" element={<Placeholder title="Repayments" />} />
-            <Route path="interest" element={<Placeholder title="Monthly Interest" />} />
+            <Route path="contributions" element={<ContributionsPage />} />
+            <Route path="loans" element={<LoansPage />} />
+            <Route path="repayments" element={<RepaymentsPage />} />
+            <Route path="interest" element={<InterestPage />} />
             <Route path="dividends" element={<Placeholder title="Dividends" />} />
             <Route path="cashflow" element={<Placeholder title="Cash Flow" />} />
             <Route path="reports" element={<Placeholder title="Reports" />} />

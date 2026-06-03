@@ -1,11 +1,20 @@
 const variants = {
+  // member status
   active: 'bg-green-100 text-green-800',
   inactive: 'bg-gray-100 text-gray-600',
   on_leave: 'bg-yellow-100 text-yellow-800',
+  // membership tier
   regular_member: 'bg-blue-100 text-blue-800',
   associate_member: 'bg-purple-100 text-purple-800',
+  // employment type
   regular: 'bg-gray-100 text-gray-700',
   non_regular: 'bg-orange-100 text-orange-700',
+  // loan status
+  pending: 'bg-yellow-100 text-yellow-800',
+  approved: 'bg-blue-100 text-blue-800',
+  released: 'bg-indigo-100 text-indigo-800',
+  completed: 'bg-green-100 text-green-800',
+  rejected: 'bg-red-100 text-red-700',
 }
 
 export default function Badge({ value, label }) {

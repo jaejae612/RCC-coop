@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
 import Badge from '../../components/ui/Badge'
 import MemberForm from './MemberForm'
 
 export default function MembersPage() {
+  const { profile } = useAuth()
+  const canEdit = profile?.role === 'admin'
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -46,12 +49,14 @@ export default function MembersPage() {
           <h1 className="text-xl font-bold text-gray-800">Members</h1>
           <p className="text-sm text-gray-500">{members.length} total enrolled</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
-        >
-          + Add Member
-        </button>
+        {canEdit && (
+          <button
+            onClick={openAdd}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            + Add Member
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -116,22 +121,24 @@ export default function MembersPage() {
                     ₱{Number(m.contribution_per_cutoff ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => openEdit(m)}
-                        className="text-blue-600 hover:underline text-xs"
-                      >
-                        Edit
-                      </button>
-                      {m.status === 'active' && (
+                    {canEdit && (
+                      <div className="flex gap-2 justify-end">
                         <button
-                          onClick={() => deactivate(m.id)}
-                          className="text-red-500 hover:underline text-xs"
+                          onClick={() => openEdit(m)}
+                          className="text-blue-600 hover:underline text-xs"
                         >
-                          Deactivate
+                          Edit
                         </button>
-                      )}
-                    </div>
+                        {m.status === 'active' && (
+                          <button
+                            onClick={() => deactivate(m.id)}
+                            className="text-red-500 hover:underline text-xs"
+                          >
+                            Deactivate
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -140,7 +147,7 @@ export default function MembersPage() {
         )}
       </div>
 
-      {showForm && (
+      {showForm && canEdit && (
         <MemberForm
           member={editing}
           onClose={() => setShowForm(false)}

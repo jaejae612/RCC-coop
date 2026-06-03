@@ -4,12 +4,19 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/auth/LoginPage'
 import SetupAccountPage from './pages/auth/SetupAccountPage'
+// Admin pages
 import DashboardPage from './pages/admin/DashboardPage'
 import MembersPage from './pages/admin/MembersPage'
 import ContributionsPage from './pages/admin/ContributionsPage'
 import LoansPage from './pages/admin/LoansPage'
 import RepaymentsPage from './pages/admin/RepaymentsPage'
 import InterestPage from './pages/admin/InterestPage'
+import UserAccountsPage from './pages/admin/UserAccountsPage'
+// Member pages
+import MemberDashboardPage from './pages/member/MemberDashboardPage'
+import MemberContributionsPage from './pages/member/MemberContributionsPage'
+import MemberLoansPage from './pages/member/MemberLoansPage'
+import MemberApplyPage from './pages/member/MemberApplyPage'
 import Placeholder from './pages/Placeholder'
 
 const roleHome = {
@@ -68,30 +75,30 @@ export default function App() {
             <Route path="dividends" element={<Placeholder title="Dividends" />} />
             <Route path="cashflow" element={<Placeholder title="Cash Flow" />} />
             <Route path="reports" element={<Placeholder title="Reports" />} />
-            <Route path="users" element={<Placeholder title="User Accounts" />} />
+            <Route path="users" element={<UserAccountsPage />} />
           </Route>
 
-          {/* Officer routes */}
+          {/* Officer routes — reuse admin pages (role-aware components handle display) */}
           <Route path="/officer" element={<RequireAuth><AppLayout /></RequireAuth>}>
-            <Route path="dashboard" element={<Placeholder title="Officer Dashboard" />} />
-            <Route path="loans" element={<Placeholder title="Loan Applications" />} />
-            <Route path="members" element={<Placeholder title="Member Overview" />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="loans" element={<LoansPage />} />
+            <Route path="members" element={<MembersPage />} />
             <Route path="reports" element={<Placeholder title="Reports" />} />
           </Route>
 
           {/* Member routes */}
           <Route path="/member" element={<RequireAuth><AppLayout /></RequireAuth>}>
-            <Route path="dashboard" element={<Placeholder title="My Dashboard" />} />
-            <Route path="contributions" element={<Placeholder title="My Contributions" />} />
-            <Route path="loans" element={<Placeholder title="My Loans" />} />
-            <Route path="apply" element={<Placeholder title="Apply for Loan" />} />
+            <Route path="dashboard" element={<MemberDashboardPage />} />
+            <Route path="contributions" element={<MemberContributionsPage />} />
+            <Route path="loans" element={<MemberLoansPage />} />
+            <Route path="apply" element={<MemberApplyPage />} />
             <Route path="dividend" element={<Placeholder title="My Dividend" />} />
             <Route path="statement" element={<Placeholder title="Statement of Account" />} />
           </Route>
 
           {/* Owner routes */}
           <Route path="/owner" element={<RequireAuth><AppLayout /></RequireAuth>}>
-            <Route path="dashboard" element={<Placeholder title="Owner Dashboard" />} />
+            <Route path="dashboard" element={<DashboardPage />} />
             <Route path="reports" element={<Placeholder title="Reports" />} />
           </Route>
 

@@ -43,9 +43,9 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
-  // Called from SetupAccountPage on first login
-  async function completeSetup(newEmail, newPassword) {
-    const { error } = await supabase.auth.updateUser({ email: newEmail, password: newPassword })
+  // Called from SetupAccountPage on first login — only sets a new password
+  async function completeSetup(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
     if (error) return { error }
     const { error: profileError } = await supabase
       .from('profiles')

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
@@ -10,12 +10,22 @@ const roleHome = {
 }
 
 export default function LoginPage() {
-  const { signIn, profile } = useAuth()
+  const { signIn, session, profile, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Redirect once authenticated and profile is loaded
+  useEffect(() => {
+    if (authLoading || !session || !profile) return
+    if (profile.first_login) {
+      navigate('/setup-account', { replace: true })
+    } else if (profile.role) {
+      navigate(roleHome[profile.role], { replace: true })
+    }
+  }, [session, profile, authLoading])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -26,7 +36,6 @@ export default function LoginPage() {
     if (error) {
       setError(error.message)
     }
-    // redirect handled by App router once profile loads
   }
 
   return (

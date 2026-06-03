@@ -17,6 +17,9 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Lock file (generated on Windows, causes npm ci failures on Linux/Cloudflare)
+package-lock.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

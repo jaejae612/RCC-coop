@@ -1,0 +1,69 @@
+import { createContext, useContext, useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+
+const AuthContext = createContext(null)
+
+export function AuthProvider({ children }) {
+  const [session, setSession] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session) fetchProfile(session.user.id)
+      else setLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      if (session) fetchProfile(session.user.id)
+      else { setProfile(null); setLoading(false) }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function fetchProfile(userId) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*, members(full_name)')
+      .eq('id', userId)
+      .single()
+    setProfile(data)
+    setLoading(false)
+  }
+
+  async function signIn(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error }
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut()
+  }
+
+  // Called from SetupAccountPage on first login
+  async function completeSetup(newEmail, newPassword) {
+    const { error } = await supabase.auth.updateUser({ email: newEmail, password: newPassword })
+    if (error) return { error }
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ first_login: false })
+      .eq('id', session.user.id)
+    if (profileError) return { error: profileError }
+    // Refresh profile state so the redirect fires
+    await fetchProfile(session.user.id)
+    return { error: null }
+  }
+
+  return (
+    <AuthContext.Provider value={{ session, profile, loading, signIn, signOut, completeSetup }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  return useContext(AuthContext)
+}

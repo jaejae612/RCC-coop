@@ -11,13 +11,18 @@ import ContributionsPage from './pages/admin/ContributionsPage'
 import LoansPage from './pages/admin/LoansPage'
 import RepaymentsPage from './pages/admin/RepaymentsPage'
 import InterestPage from './pages/admin/InterestPage'
+import DividendsPage from './pages/admin/DividendsPage'
+import CashFlowPage from './pages/admin/CashFlowPage'
+import ReportsPage from './pages/admin/ReportsPage'
 import UserAccountsPage from './pages/admin/UserAccountsPage'
 // Member pages
 import MemberDashboardPage from './pages/member/MemberDashboardPage'
 import MemberContributionsPage from './pages/member/MemberContributionsPage'
 import MemberLoansPage from './pages/member/MemberLoansPage'
 import MemberApplyPage from './pages/member/MemberApplyPage'
-import Placeholder from './pages/Placeholder'
+import MemberDividendPage from './pages/member/MemberDividendPage'
+import MemberStatementPage from './pages/member/MemberStatementPage'
+
 
 const roleHome = {
   admin: '/admin/dashboard',
@@ -72,9 +77,9 @@ export default function App() {
             <Route path="loans" element={<LoansPage />} />
             <Route path="repayments" element={<RepaymentsPage />} />
             <Route path="interest" element={<InterestPage />} />
-            <Route path="dividends" element={<Placeholder title="Dividends" />} />
-            <Route path="cashflow" element={<Placeholder title="Cash Flow" />} />
-            <Route path="reports" element={<Placeholder title="Reports" />} />
+            <Route path="dividends" element={<DividendsPage />} />
+            <Route path="cashflow" element={<CashFlowPage />} />
+            <Route path="reports" element={<ReportsPage />} />
             <Route path="users" element={<UserAccountsPage />} />
           </Route>
 
@@ -83,7 +88,7 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="loans" element={<LoansPage />} />
             <Route path="members" element={<MembersPage />} />
-            <Route path="reports" element={<Placeholder title="Reports" />} />
+            <Route path="reports" element={<ReportsPage />} />
           </Route>
 
           {/* Member routes */}
@@ -92,14 +97,14 @@ export default function App() {
             <Route path="contributions" element={<MemberContributionsPage />} />
             <Route path="loans" element={<MemberLoansPage />} />
             <Route path="apply" element={<MemberApplyPage />} />
-            <Route path="dividend" element={<Placeholder title="My Dividend" />} />
-            <Route path="statement" element={<Placeholder title="Statement of Account" />} />
+            <Route path="dividend" element={<MemberDividendPage />} />
+            <Route path="statement" element={<MemberStatementPage />} />
           </Route>
 
           {/* Owner routes */}
           <Route path="/owner" element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="reports" element={<Placeholder title="Reports" />} />
+            <Route path="reports" element={<ReportsPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

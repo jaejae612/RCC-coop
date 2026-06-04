@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import Badge from '../../components/ui/Badge'
+import { computeCreditScore, gradeStyle } from '../../lib/creditScore'
 
 const peso = n => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
 
@@ -15,27 +15,87 @@ function StatCard({ label, value, sub, accent }) {
   )
 }
 
+function CreditCard({ cr }) {
+  if (!cr) return null
+  const s = gradeStyle(cr.grade)
+  const factors = [
+    { label: 'Loan Repayment',    key: 'repayment',   max: 40 },
+    { label: 'Share Capital',     key: 'capital',     max: 30 },
+    { label: 'Contributions',     key: 'consistency', max: 20 },
+    { label: 'Membership Length', key: 'membership',  max: 10 },
+  ]
+  return (
+    <div className="bg-white rounded-xl shadow p-5">
+      <div className="flex items-start justify-between mb-3">
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Credit Rating</p>
+          <div className="flex items-baseline gap-2">
+            <span className={`text-4xl font-bold ${s.text}`}>{cr.grade}</span>
+            <span className="text-sm text-gray-400">{cr.score} / 100</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-0.5">{cr.label}</p>
+        </div>
+        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${s.bg} ${s.text}`}>
+          {cr.label}
+        </span>
+      </div>
+
+      {/* Overall bar */}
+      <div className="bg-gray-100 rounded-full h-2 mb-4">
+        <div
+          className={`h-2 rounded-full ${s.dot}`}
+          style={{ width: `${cr.score}%` }}
+        />
+      </div>
+
+      {/* Factor breakdown */}
+      <div className="space-y-2.5">
+        {factors.map(f => (
+          <div key={f.key}>
+            <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+              <span>{f.label}</span>
+              <span className="font-medium text-gray-700">{cr.breakdown[f.key]} / {f.max}</span>
+            </div>
+            <div className="bg-gray-100 rounded-full h-1">
+              <div
+                className="bg-blue-400 h-1 rounded-full"
+                style={{ width: `${(cr.breakdown[f.key] / f.max) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-xs text-gray-400 mt-4">AA · A · B · C · D (85 / 70 / 55 / 40 threshold)</p>
+    </div>
+  )
+}
+
 export default function MemberDashboardPage() {
   const { profile } = useAuth()
   const memberName = profile?.members?.full_name ?? profile?.display_name ?? 'Member'
-  const [stats, setStats] = useState(null)
+
+  const [stats,          setStats]          = useState(null)
+  const [creditRating,   setCreditRating]   = useState(null)
   const [recentContribs, setRecentContribs] = useState([])
-  const [activeLoans, setActiveLoans] = useState([])
+  const [activeLoans,    setActiveLoans]    = useState([])
 
   useEffect(() => {
     async function load() {
       const [
+        { data: member },
         { data: contribs },
         { data: loans },
         { data: payments },
       ] = await Promise.all([
+        supabase.from('members').select('date_joined, membership_tier').single(),
         supabase.from('contributions').select('amount, cutoff_date, cutoff_period').order('cutoff_date', { ascending: false }),
         supabase.from('loans').select('id, loan_number, loan_type, principal_amount, total_payable, status, date_released'),
         supabase.from('loan_payments').select('loan_id, amount_paid'),
       ])
 
       const totalCapital = (contribs ?? []).reduce((s, c) => s + Number(c.amount), 0)
-      const cutoffCount = (contribs ?? []).length
+      const cutoffCount  = (contribs ?? []).length
 
       const paidByLoan = {}
       for (const p of (payments ?? [])) {
@@ -52,9 +112,13 @@ export default function MemberDashboardPage() {
       setRecentContribs((contribs ?? []).slice(0, 5))
       setActiveLoans(released.map(l => ({
         ...l,
-        paid: paidByLoan[l.id] ?? 0,
+        paid:      paidByLoan[l.id] ?? 0,
         remaining: Math.max(0, Number(l.total_payable ?? l.principal_amount) - (paidByLoan[l.id] ?? 0)),
       })))
+
+      if (member) {
+        setCreditRating(computeCreditScore(member, contribs ?? [], loans ?? [], payments ?? []))
+      }
     }
     load()
   }, [])
@@ -67,7 +131,7 @@ export default function MemberDashboardPage() {
       </div>
 
       {stats ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard
             label="Total Share Capital"
             value={peso(stats.totalCapital)}
@@ -91,10 +155,13 @@ export default function MemberDashboardPage() {
           />
         </div>
       ) : (
-        <p className="text-sm text-gray-500 mb-8">Loading...</p>
+        <p className="text-sm text-gray-500 mb-6">Loading...</p>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Credit Rating */}
+        <CreditCard cr={creditRating} />
+
         {/* Recent Contributions */}
         <div className="bg-white rounded-xl shadow p-5">
           <h2 className="font-semibold text-gray-700 mb-3">Recent Contributions</h2>
@@ -131,7 +198,6 @@ export default function MemberDashboardPage() {
                     <span>Paid: {peso(l.paid)}</span>
                     <span className="text-red-600 font-medium">Remaining: {peso(l.remaining)}</span>
                   </div>
-                  {/* Progress bar */}
                   <div className="mt-1.5 bg-gray-100 rounded-full h-1.5">
                     <div
                       className="bg-blue-500 h-1.5 rounded-full"

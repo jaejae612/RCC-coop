@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import Badge from '../../components/ui/Badge'
 import LoanForm from './LoanForm'
+import { computeCreditScore, gradeStyle } from '../../lib/creditScore'
 
 const STATUSES = ['all', 'pending', 'approved', 'released', 'completed', 'rejected']
 
@@ -24,27 +25,86 @@ function StatusTab({ value, label, active, count, onClick }) {
   )
 }
 
+function CreditPill({ grade, score }) {
+  if (!grade) return null
+  const s = gradeStyle(grade)
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${s.bg} ${s.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+      {grade} {score}
+    </span>
+  )
+}
+
 export default function LoansPage() {
   const { profile } = useAuth()
-  const [loans, setLoans] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [search, setSearch] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState(null)
+
+  const [loans,         setLoans]         = useState([])
+  const [scores,        setScores]        = useState({}) // member_id → credit result
+  const [loading,       setLoading]       = useState(true)
+  const [statusFilter,  setStatusFilter]  = useState('all')
+  const [search,        setSearch]        = useState('')
+  const [showForm,      setShowForm]      = useState(false)
+  const [editing,       setEditing]       = useState(null)
   const [actionLoading, setActionLoading] = useState(null)
 
   const role = profile?.role
 
-  useEffect(() => { fetchLoans() }, [])
+  useEffect(() => { fetchAll() }, [])
 
-  async function fetchLoans() {
+  async function fetchAll() {
     setLoading(true)
-    const { data } = await supabase
-      .from('loans')
-      .select('*, members(full_name, membership_tier)')
-      .order('created_at', { ascending: false })
-    setLoans(data ?? [])
+
+    const [
+      { data: l },
+      { data: members },
+      { data: contribs },
+      { data: payments },
+    ] = await Promise.all([
+      supabase.from('loans').select('*, members(full_name, membership_tier)').order('created_at', { ascending: false }),
+      supabase.from('members').select('id, date_joined, membership_tier'),
+      supabase.from('contributions').select('member_id, amount'),
+      supabase.from('loan_payments').select('loan_id, amount_paid'),
+    ])
+
+    const loans = l ?? []
+
+    // Group contributions by member
+    const contribsByMember = {}
+    for (const c of (contribs ?? [])) {
+      if (!contribsByMember[c.member_id]) contribsByMember[c.member_id] = []
+      contribsByMember[c.member_id].push(c)
+    }
+
+    // Group loans by member and payments by loan
+    const loansByMember  = {}
+    const paymentsByLoan = {}
+    for (const loan of loans) {
+      if (!loansByMember[loan.member_id]) loansByMember[loan.member_id] = []
+      loansByMember[loan.member_id].push(loan)
+    }
+    for (const p of (payments ?? [])) {
+      if (!paymentsByLoan[p.loan_id]) paymentsByLoan[p.loan_id] = []
+      paymentsByLoan[p.loan_id].push(p)
+    }
+
+    // Compute credit score per member (only unique member IDs in loan list)
+    const memberMap = Object.fromEntries((members ?? []).map(m => [m.id, m]))
+    const computed  = {}
+    const seen      = new Set()
+    for (const loan of loans) {
+      if (seen.has(loan.member_id)) continue
+      seen.add(loan.member_id)
+      const mem      = memberMap[loan.member_id]
+      if (!mem) continue
+      const mLoans    = loansByMember[loan.member_id]    ?? []
+      const mContribs = contribsByMember[loan.member_id] ?? []
+      const mPayments = mLoans.flatMap(ln => paymentsByLoan[ln.id] ?? [])
+      computed[loan.member_id] = computeCreditScore(mem, mContribs, mLoans, mPayments)
+    }
+
+    setLoans(loans)
+    setScores(computed)
     setLoading(false)
   }
 
@@ -55,33 +115,33 @@ export default function LoansPage() {
 
   const filtered = loans.filter(l => {
     const matchStatus = statusFilter === 'all' || l.status === statusFilter
-    const name = l.members?.full_name?.toLowerCase() ?? ''
+    const name        = l.members?.full_name?.toLowerCase() ?? ''
     const matchSearch = !search || name.includes(search.toLowerCase())
     return matchStatus && matchSearch
   })
 
-  async function updateStatus(loan, newStatus, extra = {}) {
+  async function updateStatus(loan, newStatus) {
     setActionLoading(loan.id + newStatus)
-    const update = { status: newStatus, ...extra }
+    const update = { status: newStatus }
     if (newStatus === 'approved') update.date_approved = new Date().toISOString().slice(0, 10)
     if (newStatus === 'released') update.date_released = new Date().toISOString().slice(0, 10)
     await supabase.from('loans').update(update).eq('id', loan.id)
     setActionLoading(null)
-    fetchLoans()
+    fetchAll()
   }
 
   async function deleteLoan(id) {
     if (!confirm('Delete this loan application?')) return
     await supabase.from('loans').delete().eq('id', id)
-    fetchLoans()
+    fetchAll()
   }
 
-  function openAdd() { setEditing(null); setShowForm(true) }
-  function openEdit(l) { setEditing(l); setShowForm(true) }
+  function openAdd()  { setEditing(null); setShowForm(true) }
+  function openEdit(l){ setEditing(l);    setShowForm(true) }
 
   const canApprove = role === 'admin' || role === 'officer'
   const canRelease = role === 'admin'
-  const canCreate = role === 'admin'
+  const canCreate  = role === 'admin'
 
   return (
     <div>
@@ -134,6 +194,7 @@ export default function LoansPage() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Member</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Credit</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">#</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600">Principal</th>
@@ -146,6 +207,7 @@ export default function LoansPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map(l => {
+                const cr        = scores[l.member_id]
                 const isLoading = (id, action) => actionLoading === id + action
                 return (
                   <tr key={l.id} className="hover:bg-gray-50">
@@ -154,6 +216,12 @@ export default function LoansPage() {
                       {l.guarantor_name && (
                         <div className="text-xs text-gray-400">c/o {l.guarantor_name}</div>
                       )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {cr
+                        ? <CreditPill grade={cr.grade} score={cr.score} />
+                        : <span className="text-gray-300 text-xs">—</span>
+                      }
                     </td>
                     <td className="px-4 py-3 text-gray-500">#{l.loan_number}</td>
                     <td className="px-4 py-3 text-gray-700 capitalize">{l.loan_type}</td>
@@ -164,9 +232,7 @@ export default function LoansPage() {
                     <td className="px-4 py-3 text-gray-500">
                       {l.term_months ? `${l.term_months}mo` : '—'}
                     </td>
-                    <td className="px-4 py-3">
-                      <Badge value={l.status} />
-                    </td>
+                    <td className="px-4 py-3"><Badge value={l.status} /></td>
                     <td className="px-4 py-3 text-gray-500">{date(l.date_applied)}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1.5 justify-end flex-wrap">
@@ -227,7 +293,7 @@ export default function LoansPage() {
         <LoanForm
           loan={editing}
           onClose={() => setShowForm(false)}
-          onSaved={() => { setShowForm(false); fetchLoans() }}
+          onSaved={() => { setShowForm(false); fetchAll() }}
         />
       )}
     </div>

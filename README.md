@@ -22,30 +22,52 @@ rcc-coop-app/
 ├── src/
 │   ├── components/
 │   │   ├── layout/
-│   │   │   ├── AppLayout.jsx       # Sidebar + main area wrapper
-│   │   │   └── Sidebar.jsx         # Role-aware navigation
+│   │   │   ├── AppLayout.jsx           # Sidebar + main area wrapper
+│   │   │   └── Sidebar.jsx             # Role-aware navigation
 │   │   └── ui/
-│   │       └── Badge.jsx           # Status / tier badges
+│   │       └── Badge.jsx               # Status / tier badges
 │   ├── context/
-│   │   └── AuthContext.jsx         # Auth state, profile, role
+│   │   └── AuthContext.jsx             # Auth state, profile, role
 │   ├── lib/
-│   │   └── supabase.js             # Supabase client
+│   │   └── supabase.js                 # Supabase client
 │   ├── pages/
 │   │   ├── auth/
-│   │   │   └── LoginPage.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   └── SetupAccountPage.jsx    # First-login password setup
 │   │   ├── admin/
-│   │   │   ├── DashboardPage.jsx   # Live stat cards
-│   │   │   ├── MembersPage.jsx     # Member list + search + filter
-│   │   │   └── MemberForm.jsx      # Add / Edit member modal
-│   │   ├── officer/                # Phase 2
-│   │   ├── member/                 # Phase 2
-│   │   └── Placeholder.jsx         # Coming soon stub
-│   ├── App.jsx                     # Router + role-based redirects
-│   └── index.css                   # Tailwind import
+│   │   │   ├── DashboardPage.jsx       # Live stat cards
+│   │   │   ├── MembersPage.jsx         # Member list + search + filter
+│   │   │   ├── MemberForm.jsx          # Add / Edit member modal
+│   │   │   ├── ContributionsPage.jsx   # Share capital contributions
+│   │   │   ├── ContributionForm.jsx
+│   │   │   ├── LoansPage.jsx           # Loan management + workflow
+│   │   │   ├── LoanForm.jsx
+│   │   │   ├── RepaymentsPage.jsx      # Loan payment recording
+│   │   │   ├── RepaymentForm.jsx
+│   │   │   ├── InterestPage.jsx        # Monthly interest batch (2%)
+│   │   │   ├── DividendsPage.jsx       # Annual dividend compute + records
+│   │   │   ├── DividendForm.jsx
+│   │   │   ├── CashFlowPage.jsx        # Running cash transaction ledger
+│   │   │   ├── CashFlowForm.jsx
+│   │   │   ├── ReportsPage.jsx         # 4-tab reports (shared with officer/owner)
+│   │   │   └── UserAccountsPage.jsx    # User role management
+│   │   └── member/
+│   │       ├── MemberDashboardPage.jsx
+│   │       ├── MemberContributionsPage.jsx
+│   │       ├── MemberLoansPage.jsx
+│   │       ├── MemberApplyPage.jsx
+│   │       ├── MemberDividendPage.jsx  # Own annual dividends
+│   │       └── MemberStatementPage.jsx # Full statement of account
+│   ├── App.jsx                         # Router + role-based redirects
+│   └── index.css                       # Tailwind import
 ├── supabase/
 │   └── migrations/
-│       ├── 001_initial_schema.sql  # All tables, enums, RLS, indexes
-│       └── 002_seed_data.sql       # Real member + loan data (April 2026)
+│       ├── 001_initial_schema.sql      # All tables, enums, RLS, indexes
+│       ├── 002_seed_data.sql           # Real member + loan data (April 2026)
+│       └── 003_update_member_emails.sql# Update fake emails → real personal emails
+├── local/                              # Gitignored — local-only reference files
+│   ├── member-accounts.csv            # All member login credentials
+│   └── pending-email-updates.csv      # Members still using temp @rcccoop.com email
 ├── .env.example
 └── README.md
 ```
@@ -61,6 +83,7 @@ rcc-coop-app/
 3. Go to **SQL Editor** and run the migrations in order:
    - `supabase/migrations/001_initial_schema.sql`
    - `supabase/migrations/002_seed_data.sql`
+   - `supabase/migrations/003_update_member_emails.sql` *(run after collecting real emails)*
 
 ### 2. Environment Variables
 
@@ -92,27 +115,21 @@ All member accounts are pre-created from the April 2026 Excel records.
 
 | Format | Example |
 |--------|---------|
-| Email | `firstname.lastname@rcccoop.com` |
+| Email (temp) | `firstname.lastname@rcccoop.com` |
 | Password | `lastname1234` |
 
-**Examples:**
+Members who have submitted their personal email are updated via `003_update_member_emails.sql`.
+See `local/member-accounts.csv` for current credentials and `local/pending-email-updates.csv` for members still using temp emails.
 
-| Name | Email | Password |
-|------|-------|----------|
-| Roselyn Amit | roselyn.amit@rcccoop.com | amit1234 |
-| Myrna Almocera | myrna.almocera@rcccoop.com | almocera1234 |
-| Sheila Fuentes | sheila.fuentes@rcccoop.com | fuentes1234 |
-
-> First-time login: members should change their password immediately.
+> First-time login forces a password change before accessing the portal.
 
 ### Admin Account
 
-After running the seed, set up the treasurer/admin account manually:
-
-1. Go to Supabase Dashboard > **Authentication > Users**
-2. Click **Add User** — enter the treasurer's email and a strong password
-3. Go to **Table Editor > profiles** — find that user's row
-4. Set `role` = `admin`
+```
+Email:    jjnoname@gmail.com
+Password: jose1234
+Role:     admin
+```
 
 ---
 
@@ -121,45 +138,52 @@ After running the seed, set up the treasurer/admin account manually:
 | Role | Access |
 |------|--------|
 | `admin` | Full access — all data entry, reports, user management |
-| `officer` | Approve/reject loans, read-only on all data |
-| `member` | Own data only — contributions, loans, dividend |
+| `officer` | Approve/reject loans, read-only on all data, reports |
+| `member` | Own data only — contributions, loans, dividend, statement |
 | `owner` | Read-only dashboard and reports |
 
 ---
 
 ## Build Phases
 
-### Phase 1 — Foundation (DONE)
+### Phase 1 — Foundation ✅ DONE
 - [x] React + Vite + Tailwind setup
 - [x] Supabase schema (all 8 tables + RLS)
 - [x] Auth system with role-based routing
+- [x] First-login password setup flow
 - [x] Member list CRUD (admin)
 - [x] Admin dashboard with live stats
-- [x] Seed data from April 2026 Excel records
+- [x] Seed data from April 2026 Excel records (~120 members)
 
-### Phase 2 — Core Features
-- [ ] Share capital module
-- [ ] Loan release + approval workflow
-- [ ] Monthly interest charging (2% batch)
-- [ ] Repayment recording
-- [ ] Monthly loan ledger (SUM LOAN equivalent)
+### Phase 2 — Core Features ✅ DONE
+- [x] Share capital contributions (full CRUD + cutoff period filtering)
+- [x] Loan creation, approval, and release workflow
+- [x] Monthly interest batch runner (2% on outstanding balance)
+- [x] Repayment recording with auto-completion detection
+- [x] Member portal — dashboard, contributions, loans, apply for loan
+- [x] Officer views — loan approvals, member read-only, reports
+- [x] User accounts management (roles, setup status)
 
-### Phase 3 — Dividend & Reporting
-- [ ] Annual dividend computation
-- [ ] Member statement of account
-- [ ] Monthly summary and outstanding loans report
-- [ ] Print / export to PDF
+### Phase 3 — Dividends, Reports & Statement ✅ DONE
+- [x] Annual dividend computation with batch preview + save
+- [x] Member dividend view (per-year earnings breakdown)
+- [x] Member statement of account (contributions + loans + payments + interest)
+- [x] Reports page — Summary, Outstanding Loans, Contributions by Cutoff, Member Roster
+- [x] Cash flow ledger (running transaction log with type/date filters)
+- [x] Member email migration (003 SQL — real emails replacing temp accounts)
 
-### Phase 4 — Cash Flow & Balance Sheet
-- [ ] Daily cash flow log
-- [ ] Receivables / balance sheet view
+### Phase 4 — Polish & Notifications
+- [ ] Print / PDF export (statement of account, reports)
+- [ ] Mobile-responsive UI refinement
+- [ ] Pagination for large tables (contributions, members)
+- [ ] SMS notifications via Semaphore PH
+- [ ] Email notifications via Supabase + Resend
 
-### Phase 5 — Polish & Notifications
+### Phase 5 — Optional / Future
 - [ ] Offline PWA support
-- [ ] Mobile-responsive UI
-- [ ] SMS via Semaphore PH
-- [ ] Email via Supabase + Resend
-- [ ] Store inventory (Red Carpet) — optional
+- [ ] Store inventory module (Red Carpet)
+- [ ] Bulk contribution import (CSV upload per cutoff)
+- [ ] Audit log (who recorded what and when)
 
 ---
 
@@ -169,12 +193,13 @@ After running the seed, set up the treasurer/admin account manually:
 |------|-------|
 | Interest rate | 2% per month on outstanding balance |
 | Fiscal year | April 1 – March 31 |
-| Loan eligibility | Regular: 6 cutoffs (3 months) / Associate: 12 cutoffs (6 months) |
-| Max loan — Regular | 3x total capital, hard cap 50,000 |
-| Max loan — Associate | 2x total capital, hard cap 30,000 |
+| Loan eligibility — Regular | 6 cutoffs minimum (3 months) |
+| Loan eligibility — Associate | 12 cutoffs minimum (6 months) |
+| Max loan — Regular | 3× total capital, hard cap ₱50,000 |
+| Max loan — Associate | 2× total capital, hard cap ₱30,000 |
 | Multiple loans | Allowed |
 | Proxy loans | Allowed ("c/o" guarantor field) |
-| Interest on capital | ~16.56% per year |
+| Annual dividend rate | ~16.56% of share capital |
 | Patronage refund | 10% of loan interest paid during fiscal year |
 
 ---

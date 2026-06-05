@@ -57,8 +57,8 @@ function CreateAccountModal({ onClose, onCreated, linkedIds, allMembers, presele
 
     setSaving(false)
 
-    if (fnErr || data?.error) {
-      setError(fnErr?.message ?? data?.error ?? 'Unknown error')
+    if (data?.error || fnErr) {
+      setError(data?.error ?? fnErr?.message ?? 'Unknown error')
       return
     }
 

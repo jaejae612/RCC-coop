@@ -21,32 +21,38 @@ function ErrorBanner({ message }) {
 }
 
 // ── Personal info card (only for users linked to a member record) ────────────
+const SUFFIXES = ['', 'Jr.', 'Sr.', 'II', 'III', 'IV', 'V']
+
 function PersonalInfoCard({ profile, refreshProfile }) {
   const m = profile.members ?? {}
-  const [firstName, setFirstName] = useState(m.first_name ?? '')
-  const [lastName,  setLastName]  = useState(m.last_name  ?? '')
-  const [address,   setAddress]   = useState(m.address    ?? '')
-  const [saving,    setSaving]    = useState(false)
-  const [success,   setSuccess]   = useState('')
-  const [error,     setError]     = useState('')
+  const [firstName,  setFirstName]  = useState(m.first_name   ?? '')
+  const [lastName,   setLastName]   = useState(m.last_name    ?? '')
+  const [nameSuffix, setNameSuffix] = useState(m.name_suffix  ?? '')
+  const [address,    setAddress]    = useState(m.address      ?? '')
+  const [saving,     setSaving]     = useState(false)
+  const [success,    setSuccess]    = useState('')
+  const [error,      setError]      = useState('')
 
   async function handleSave(e) {
     e.preventDefault()
-    const fn = firstName.trim()
-    const ln = lastName.trim()
+    const fn  = firstName.trim()
+    const ln  = lastName.trim()
+    const sfx = nameSuffix.trim()
     if (!fn || !ln) return
     setSaving(true)
     setSuccess('')
     setError('')
 
+    const fullName = [fn, ln, sfx].filter(Boolean).join(' ')
+
     const { error: err } = await supabase
       .from('members')
       .update({
-        first_name: fn,
-        last_name:  ln,
-        // keep full_name in sync so the rest of the app displays correctly
-        full_name:  `${fn} ${ln}`,
-        address:    address.trim() || null,
+        first_name:  fn,
+        last_name:   ln,
+        name_suffix: sfx || null,
+        full_name:   fullName,
+        address:     address.trim() || null,
       })
       .eq('id', profile.member_id)
 
@@ -91,6 +97,20 @@ function PersonalInfoCard({ profile, refreshProfile }) {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Suffix <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <select
+            value={nameSuffix}
+            onChange={e => setNameSuffix(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {SUFFIXES.map(s => (
+              <option key={s} value={s}>{s || '— None —'}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

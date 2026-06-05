@@ -20,24 +20,34 @@ function ErrorBanner({ message }) {
   )
 }
 
-// ── Name card (only for users linked to a member record) ─────────────────────
-function NameCard({ profile, refreshProfile }) {
-  const [name, setName] = useState(profile.members?.full_name ?? '')
-  const [saving, setSaving] = useState(false)
-  const [success, setSuccess] = useState('')
-  const [error, setError]   = useState('')
+// ── Personal info card (only for users linked to a member record) ────────────
+function PersonalInfoCard({ profile, refreshProfile }) {
+  const m = profile.members ?? {}
+  const [firstName, setFirstName] = useState(m.first_name ?? '')
+  const [lastName,  setLastName]  = useState(m.last_name  ?? '')
+  const [address,   setAddress]   = useState(m.address    ?? '')
+  const [saving,    setSaving]    = useState(false)
+  const [success,   setSuccess]   = useState('')
+  const [error,     setError]     = useState('')
 
   async function handleSave(e) {
     e.preventDefault()
-    const trimmed = name.trim()
-    if (!trimmed) return
+    const fn = firstName.trim()
+    const ln = lastName.trim()
+    if (!fn || !ln) return
     setSaving(true)
     setSuccess('')
     setError('')
 
     const { error: err } = await supabase
       .from('members')
-      .update({ full_name: trimmed })
+      .update({
+        first_name: fn,
+        last_name:  ln,
+        // keep full_name in sync so the rest of the app displays correctly
+        full_name:  `${fn} ${ln}`,
+        address:    address.trim() || null,
+      })
       .eq('id', profile.member_id)
 
     setSaving(false)
@@ -46,36 +56,62 @@ function NameCard({ profile, refreshProfile }) {
       setError(err.message)
     } else {
       await refreshProfile()
-      setSuccess('Name updated successfully.')
+      setSuccess('Profile updated successfully.')
       setTimeout(() => setSuccess(''), 3000)
     }
   }
 
   return (
     <div className="bg-white rounded-xl shadow p-6">
-      <h2 className="font-semibold text-gray-800 mb-1">Display Name</h2>
+      <h2 className="font-semibold text-gray-800 mb-1">Personal Information</h2>
       <p className="text-sm text-gray-500 mb-4">
-        This is the name shown across the app for your account.
+        Your name is shown across the app. Address is for cooperative records only.
       </p>
       <form onSubmit={handleSave} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={e => setFirstName(e.target.value)}
+              required
+              placeholder="e.g. Juan"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={e => setLastName(e.target.value)}
+              required
+              placeholder="e.g. Dela Cruz"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Address <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={address}
+            onChange={e => setAddress(e.target.value)}
+            rows={2}
+            placeholder="e.g. 123 Rizal St., Cebu City"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           />
         </div>
         <SuccessBanner message={success} />
         <ErrorBanner  message={error}   />
         <button
           type="submit"
-          disabled={saving || !name.trim()}
+          disabled={saving || !firstName.trim() || !lastName.trim()}
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
         >
-          {saving ? 'Saving...' : 'Save Name'}
+          {saving ? 'Saving...' : 'Save Info'}
         </button>
       </form>
     </div>
@@ -195,9 +231,9 @@ export default function ProfilePage() {
       </div>
 
       <div className="space-y-4 max-w-lg">
-        {/* Name card — only for users linked to a member */}
+        {/* Personal info card — only for users linked to a member */}
         {profile?.member_id && (
-          <NameCard profile={profile} refreshProfile={refreshProfile} />
+          <PersonalInfoCard profile={profile} refreshProfile={refreshProfile} />
         )}
 
         {/* Password card — all users */}

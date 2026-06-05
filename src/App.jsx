@@ -15,7 +15,6 @@ import DividendsPage from './pages/admin/DividendsPage'
 import CashFlowPage from './pages/admin/CashFlowPage'
 import ReportsPage from './pages/admin/ReportsPage'
 import NotificationsPage from './pages/admin/NotificationsPage'
-import UserAccountsPage from './pages/admin/UserAccountsPage'
 // Member pages
 import MemberDashboardPage from './pages/member/MemberDashboardPage'
 import MemberContributionsPage from './pages/member/MemberContributionsPage'
@@ -84,7 +83,6 @@ export default function App() {
             <Route path="cashflow" element={<CashFlowPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="users" element={<UserAccountsPage />} />
             <Route path="profile" element={<ProfilePage />} />
           </Route>
 

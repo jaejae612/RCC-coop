@@ -13,7 +13,6 @@ const adminLinks = [
   { to: '/admin/cashflow',      label: 'Cash Flow' },
   { to: '/admin/reports',       label: 'Reports' },
   { to: '/admin/notifications', label: 'Notifications' },
-  { to: '/admin/users',         label: 'User Accounts' },
   { to: '/admin/profile',       label: 'My Profile' },
 ]
 

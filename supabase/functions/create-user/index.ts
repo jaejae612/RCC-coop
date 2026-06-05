@@ -61,8 +61,8 @@ Deno.serve(async (req) => {
     if (createError) return ok({ error: `Create user failed: ${createError.message}` })
 
     // The on_auth_user_created trigger already inserted a profile row.
-    // Update it with the correct role, first_login flag, and optional member_id.
-    const updatePayload: Record<string, unknown> = { role, first_login: true }
+    // Update it with the correct role, first_login flag, email, and optional member_id.
+    const updatePayload: Record<string, unknown> = { role, first_login: true, email }
     if (member_id) updatePayload.member_id = member_id
 
     const { error: profileError } = await supabaseAdmin

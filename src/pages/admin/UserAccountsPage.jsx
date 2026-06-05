@@ -180,9 +180,13 @@ export default function UserAccountsPage() {
   const [search,      setSearch]      = useState('')
   const [savingId,    setSavingId]    = useState(null)
   const [showModal,   setShowModal]   = useState(false)
-  const [preselect,   setPreselect]   = useState(null) // member to pre-fill in modal
+  const [preselect,   setPreselect]   = useState(null)
   const [lastCreated, setLastCreated] = useState(null)
-  const [tab,         setTab]         = useState('accounts') // 'accounts' | 'no-account'
+  const [tab,         setTab]         = useState('accounts')
+
+  // Inline link-member state
+  const [linkingId,    setLinkingId]    = useState(null) // profile id being linked
+  const [linkMemberId, setLinkMemberId] = useState('')
 
   useEffect(() => { fetchAll() }, [])
 
@@ -192,12 +196,12 @@ export default function UserAccountsPage() {
       const [{ data: profs }, { data: mems }] = await Promise.all([
         supabase
           .from('profiles')
-          .select('*, members(full_name, first_name, last_name, name_suffix, employee_id, status)')
-          .order('created_at', { ascending: false }),
+          .select('*, members(full_name, first_name, last_name, name_suffix, employee_id, status, email)'),
         supabase
           .from('members')
-          .select('id, full_name, first_name, last_name, name_suffix, employee_id, status')
-          .order('last_name, first_name'),
+          .select('id, full_name, first_name, last_name, name_suffix, employee_id, status, email')
+          .order('last_name')
+          .order('first_name'),
       ])
       setProfiles(profs ?? [])
       setAllMembers(mems ?? [])
@@ -221,6 +225,36 @@ export default function UserAccountsPage() {
     fetchAll()
   }
 
+  async function saveMemberLink(profileId) {
+    if (!linkMemberId) return
+    setSavingId(profileId)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ member_id: linkMemberId })
+      .eq('id', profileId)
+    setSavingId(null)
+    if (!error) {
+      setLinkingId(null)
+      setLinkMemberId('')
+      fetchAll()
+    }
+  }
+
+  function startLinking(profileId, profileEmail) {
+    setLinkingId(profileId)
+    // Auto-match: pre-select member whose email matches the profile's auth email
+    if (profileEmail) {
+      const match = allMembers.find(
+        m => !linkedIds.has(m.id) &&
+             m.email &&
+             m.email.toLowerCase() === profileEmail.toLowerCase()
+      )
+      setLinkMemberId(match?.id ?? '')
+    } else {
+      setLinkMemberId('')
+    }
+  }
+
   function openCreate(member = null) {
     setPreselect(member)
     setShowModal(true)
@@ -235,9 +269,10 @@ export default function UserAccountsPage() {
 
   const linkedIds = new Set(profiles.map(p => p.member_id).filter(Boolean))
 
-  // Members split into with-account and without-account
-  const membersWithAccount    = allMembers.filter(m => linkedIds.has(m.id))
   const membersWithoutAccount = allMembers.filter(m => !linkedIds.has(m.id))
+
+  // Unlinked members available for the inline link dropdown
+  const unlinkedMembers = allMembers.filter(m => !linkedIds.has(m.id))
 
   const filteredProfiles = profiles.filter(p => {
     const name = memberDisplayName(p.members) === '—'
@@ -337,6 +372,7 @@ export default function UserAccountsPage() {
               <tbody className="divide-y divide-gray-100">
                 {filteredProfiles.map(p => {
                   const mem = p.members
+                  const isLinking = linkingId === p.id
                   return (
                     <tr key={p.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-800">
@@ -349,7 +385,7 @@ export default function UserAccountsPage() {
                       <td className="px-4 py-3">
                         {mem
                           ? <Badge value={mem.status} />
-                          : <span className="text-gray-400 text-xs">no member link</span>
+                          : <span className="text-gray-400 text-xs italic">no member link</span>
                         }
                       </td>
                       <td className="px-4 py-3">
@@ -369,14 +405,55 @@ export default function UserAccountsPage() {
                         }
                       </td>
                       <td className="px-4 py-3">
-                        {!p.first_login && (
-                          <button
-                            onClick={() => resetFirstLogin(p.id)}
-                            disabled={savingId === p.id}
-                            className="text-xs text-amber-600 hover:underline disabled:opacity-50"
-                          >
-                            Force reset
-                          </button>
+                        {isLinking ? (
+                          /* Inline link picker */
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={linkMemberId}
+                              onChange={e => setLinkMemberId(e.target.value)}
+                              className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-45"
+                            >
+                              <option value="">Select member...</option>
+                              {unlinkedMembers.map(m => (
+                                <option key={m.id} value={m.id}>
+                                  {memberDisplayName(m)}{m.email && m.email.toLowerCase() === (p.email ?? '').toLowerCase() ? ' ✓' : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => saveMemberLink(p.id)}
+                              disabled={!linkMemberId || savingId === p.id}
+                              className="text-xs bg-blue-600 text-white px-2 py-1 rounded disabled:opacity-40 hover:bg-blue-700"
+                            >
+                              {savingId === p.id ? '...' : 'Save'}
+                            </button>
+                            <button
+                              onClick={() => { setLinkingId(null); setLinkMemberId('') }}
+                              className="text-xs text-gray-400 hover:text-gray-600 px-1"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-3 justify-end">
+                            {!p.member_id && (
+                              <button
+                                onClick={() => startLinking(p.id, p.email)}
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                Link Member
+                              </button>
+                            )}
+                            {!p.first_login && (
+                              <button
+                                onClick={() => resetFirstLogin(p.id)}
+                                disabled={savingId === p.id}
+                                className="text-xs text-amber-600 hover:underline disabled:opacity-50"
+                              >
+                                Force reset
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>

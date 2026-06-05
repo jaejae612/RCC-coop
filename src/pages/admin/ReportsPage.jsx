@@ -32,6 +32,8 @@ export default function ReportsPage() {
         supabase.from('contributions').select('member_id, amount, cutoff_period, cutoff_date'),
         supabase.from('loans').select('*').order('date_applied', { ascending: false }),
         supabase.from('loan_payments').select('loan_id, amount_paid'),
+      ]).catch(() => [
+        { data: null }, { data: null }, { data: null }, { data: null },
       ])
       setMembers(m ?? [])
       setContributions(c ?? [])

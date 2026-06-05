@@ -41,7 +41,7 @@ export default function NotificationsPage() {
   const [message,   setMessage]   = useState('')
 
   useEffect(() => {
-    Promise.all([fetchNotifications(), fetchMembers()])
+    Promise.all([fetchNotifications(), fetchMembers()]).catch(() => { setLoading(false) })
   }, [])
 
   async function fetchNotifications() {
@@ -210,7 +210,7 @@ export default function NotificationsPage() {
             ) : notifications.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-10">No notifications sent yet.</p>
             ) : (
-              <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
+              <div className="divide-y divide-gray-50 max-h-150 overflow-y-auto">
                 {notifications.map(n => {
                   const recipientName =
                     n.profiles?.members?.full_name ??
@@ -225,7 +225,7 @@ export default function NotificationsPage() {
                           </span>
                           <span className="text-xs text-gray-500 truncate">→ {recipientName}</span>
                           {!n.is_read && (
-                            <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" title="Unread" />
+                            <span className="w-2 h-2 bg-blue-500 rounded-full shrink-0" title="Unread" />
                           )}
                         </div>
                         <p className="text-sm font-medium text-gray-800">{n.title}</p>
@@ -236,7 +236,7 @@ export default function NotificationsPage() {
                       </div>
                       <button
                         onClick={() => deleteNotification(n.id)}
-                        className="text-gray-300 hover:text-red-400 text-xs flex-shrink-0 mt-0.5"
+                        className="text-gray-300 hover:text-red-400 text-xs shrink-0 mt-0.5"
                         title="Delete"
                       >
                         ✕

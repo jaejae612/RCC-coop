@@ -30,6 +30,8 @@ export default function MemberStatementPage() {
         supabase.from('loans').select('*').order('date_applied', { ascending: false }),
         supabase.from('loan_payments').select('*').order('payment_date', { ascending: true }),
         supabase.from('loan_interest_charges').select('*').order('charge_month', { ascending: false }),
+      ]).catch(() => [
+        { data: null }, { data: null }, { data: null }, { data: null }, { data: null },
       ])
       setMember(m)
       setContributions(c ?? [])

@@ -47,6 +47,8 @@ export default function MembersPage() {
       supabase.from('contributions').select('member_id, amount'),
       supabase.from('loans').select('member_id, id, total_payable, principal_amount, status'),
       supabase.from('loan_payments').select('loan_id, amount_paid'),
+    ]).catch(() => [
+      { data: null }, { data: null }, { data: null }, { data: null },
     ])
 
     const members = m ?? []

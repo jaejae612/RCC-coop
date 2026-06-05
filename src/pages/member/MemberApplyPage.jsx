@@ -51,7 +51,7 @@ export default function MemberApplyPage() {
       supabase.from('contributions').select('id', { count: 'exact', head: true }).eq('member_id', profile.member_id),
     ]).then(([{ data: member }, { count: cutoffs }]) => {
       setMemberInfo({ ...member, cutoffCount: cutoffs ?? 0 })
-    })
+    }).catch(() => {})
   }, [profile?.member_id])
 
   function set(field, value) {

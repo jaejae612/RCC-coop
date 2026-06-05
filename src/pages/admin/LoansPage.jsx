@@ -70,6 +70,8 @@ export default function LoansPage() {
       supabase.from('members').select('id, date_joined, membership_tier'),
       supabase.from('contributions').select('member_id, amount'),
       supabase.from('loan_payments').select('loan_id, amount_paid'),
+    ]).catch(() => [
+      { data: null }, { data: null }, { data: null }, { data: null },
     ])
 
     const loans = l ?? []

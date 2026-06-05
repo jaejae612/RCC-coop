@@ -92,6 +92,8 @@ export default function MemberDashboardPage() {
         supabase.from('contributions').select('amount, cutoff_date, cutoff_period').order('cutoff_date', { ascending: false }),
         supabase.from('loans').select('id, loan_number, loan_type, principal_amount, total_payable, status, date_released'),
         supabase.from('loan_payments').select('loan_id, amount_paid'),
+      ]).catch(() => [
+        { data: null }, { data: null }, { data: null }, { data: null },
       ])
 
       const totalCapital = (contribs ?? []).reduce((s, c) => s + Number(c.amount), 0)

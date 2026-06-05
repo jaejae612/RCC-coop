@@ -141,6 +141,8 @@ export default function MemberLoansPage() {
         supabase.from('loans').select('*').order('created_at', { ascending: false }),
         supabase.from('loan_payments').select('*').order('payment_date', { ascending: false }),
         supabase.from('loan_interest_charges').select('*'),
+      ]).catch(() => [
+        { data: null }, { data: null }, { data: null },
       ])
       setLoans(l ?? [])
       setPayments(p ?? [])

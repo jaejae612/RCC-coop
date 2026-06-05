@@ -199,12 +199,9 @@ function PasswordCard({ updatePassword }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function ProfilePage() {
-  const { profile, updatePassword, refreshProfile } = useAuth()
+  const { session, profile, updatePassword, refreshProfile } = useAuth()
 
-  const displayEmail =
-    profile?.email ??
-    profile?.members?.email ??
-    '—'
+  const displayEmail = session?.user?.email ?? '—'
 
   return (
     <div>

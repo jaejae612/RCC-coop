@@ -8,6 +8,21 @@ import { computeCreditScore, gradeStyle } from '../../lib/creditScore'
 
 const PAGE_SIZE = 25
 
+// Returns a reason string if the member's name looks problematic, null if fine
+function nameIssue(m) {
+  const fn = (m.first_name ?? '').trim()
+  const ln = (m.last_name  ?? '').trim()
+  if (!fn && !ln) return 'Missing both names'
+  if (!fn)        return 'Missing first name'
+  if (!ln)        return 'Missing last name'
+  if (/\d/.test(fn) || /\d/.test(ln))               return 'Contains digits'
+  if (fn.length < 2 || ln.length < 2)               return 'Name too short'
+  // allow letters (incl. accented), spaces, hyphens, periods, apostrophes
+  const ok = /^[a-zA-ZÀ-ÿ\s'\-.]+$/
+  if (!ok.test(fn) || !ok.test(ln))                 return 'Unusual characters'
+  return null
+}
+
 function CreditBadge({ grade, score }) {
   const s = gradeStyle(grade)
   return (
@@ -26,9 +41,10 @@ export default function MembersPage() {
   const [scores,      setScores]      = useState({}) // member_id → { score, grade }
   const [loading,     setLoading]     = useState(true)
   const [search,      setSearch]      = useState('')
-  const [filterStatus,setFilterStatus]= useState('all')
-  const [filterGrade, setFilterGrade] = useState('all')
-  const [showForm,    setShowForm]    = useState(false)
+  const [filterStatus,  setFilterStatus]  = useState('all')
+  const [filterGrade,   setFilterGrade]   = useState('all')
+  const [filterIssues,  setFilterIssues]  = useState(false)
+  const [showForm,      setShowForm]      = useState(false)
   const [editing,     setEditing]     = useState(null)
   const [page,        setPage]        = useState(1)
 
@@ -97,13 +113,16 @@ export default function MembersPage() {
     fetchAll()
   }
 
+  const issueCount = members.filter(m => nameIssue(m) !== null).length
+
   const filtered = members.filter(m => {
     const name = `${m.first_name ?? ''} ${m.last_name ?? ''} ${m.name_suffix ?? ''}`.toLowerCase()
     const matchSearch  = name.includes(search.toLowerCase()) ||
       (m.employee_id ?? '').toLowerCase().includes(search.toLowerCase())
     const matchStatus  = filterStatus === 'all' || m.status === filterStatus
     const matchGrade   = filterGrade  === 'all' || (scores[m.id]?.grade ?? '') === filterGrade
-    return matchSearch && matchStatus && matchGrade
+    const matchIssues  = !filterIssues || nameIssue(m) !== null
+    return matchSearch && matchStatus && matchGrade && matchIssues
   })
 
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -156,6 +175,22 @@ export default function MembersPage() {
         </select>
       </div>
 
+      {/* Needs-review pill */}
+      {!loading && issueCount > 0 && (
+        <div className="mb-3">
+          <button
+            onClick={() => { setFilterIssues(f => !f); setPage(1) }}
+            className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+              filterIssues
+                ? 'bg-orange-100 text-orange-700 border-transparent'
+                : 'bg-white text-orange-600 border-orange-300 hover:border-orange-400'
+            }`}
+          >
+            ⚠ Needs Review · {issueCount}
+          </button>
+        </div>
+      )}
+
       {/* Grade summary pills */}
       {!loading && Object.keys(scores).length > 0 && (
         <div className="flex gap-2 mb-4 flex-wrap">
@@ -196,7 +231,8 @@ export default function MembersPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Tier</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Joined</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Credit Rating</th>
+                {!filterIssues && <th className="text-left px-4 py-3 font-medium text-gray-600">Credit Rating</th>}
+                {filterIssues  && <th className="text-left px-4 py-3 font-medium text-orange-600">Issue</th>}
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -204,10 +240,14 @@ export default function MembersPage() {
               {paged.map(m => {
                 const cr = scores[m.id]
                 return (
-                  <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{m.first_name ?? '—'}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">
-                      {m.last_name ?? '—'}{m.name_suffix ? ` ${m.name_suffix}` : ''}
+                  <tr key={m.id} className={`hover:bg-gray-50 ${nameIssue(m) ? 'bg-orange-50/40' : ''}`}>
+                    <td className={`px-4 py-3 font-medium ${nameIssue(m) ? 'text-orange-800' : 'text-gray-800'}`}>
+                      {m.first_name || <span className="text-orange-400 italic">missing</span>}
+                    </td>
+                    <td className={`px-4 py-3 font-medium ${nameIssue(m) ? 'text-orange-800' : 'text-gray-800'}`}>
+                      {m.last_name
+                        ? m.last_name + (m.name_suffix ? ` ${m.name_suffix}` : '')
+                        : <span className="text-orange-400 italic">missing</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-500">{m.employee_id ?? '—'}</td>
                     <td className="px-4 py-3"><Badge value={m.membership_tier} /></td>
@@ -215,12 +255,22 @@ export default function MembersPage() {
                     <td className="px-4 py-3 text-gray-500">
                       {m.date_joined ? new Date(m.date_joined + 'T00:00:00').toLocaleDateString('en-PH') : '—'}
                     </td>
-                    <td className="px-4 py-3">
-                      {cr
-                        ? <CreditBadge grade={cr.grade} score={cr.score} />
-                        : <span className="text-gray-300 text-xs">—</span>
-                      }
-                    </td>
+                    {!filterIssues && (
+                      <td className="px-4 py-3">
+                        {cr
+                          ? <CreditBadge grade={cr.grade} score={cr.score} />
+                          : <span className="text-gray-300 text-xs">—</span>
+                        }
+                      </td>
+                    )}
+                    {filterIssues && (
+                      <td className="px-4 py-3">
+                        {nameIssue(m)
+                          ? <span className="text-xs text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full font-medium">{nameIssue(m)}</span>
+                          : <span className="text-xs text-gray-400">—</span>
+                        }
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       {canEdit && (
                         <div className="flex gap-2 justify-end">

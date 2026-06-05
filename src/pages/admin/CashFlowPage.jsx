@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import CashFlowForm from './CashFlowForm'
+import Pagination from '../../components/ui/Pagination'
+
+const PAGE_SIZE = 50
 
 const peso  = n => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
 const fdate = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-PH') : '—'
@@ -37,6 +40,7 @@ export default function CashFlowPage() {
   const [filterTo,   setFilterTo]   = useState('')
   const [showForm,   setShowForm]   = useState(false)
   const [editing,    setEditing]    = useState(null)
+  const [page,       setPage]       = useState(1)
 
   useEffect(() => { fetchAll() }, [])
 
@@ -61,6 +65,8 @@ export default function CashFlowPage() {
   const totalDeposits     = filtered.reduce((s, r) => s + Number(r.deposit    ?? 0), 0)
   const totalWithdrawals  = filtered.reduce((s, r) => s + Number(r.withdrawal ?? 0), 0)
   const currentBalance    = rows.length > 0 ? Number(rows[0].balance_after) : 0
+
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   function openAdd()  { setEditing(null); setShowForm(true) }
   function openEdit(r){ setEditing(r);    setShowForm(true) }
@@ -147,7 +153,7 @@ export default function CashFlowPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         {loading ? (
           <p className="text-center text-sm text-gray-500 py-12">Loading...</p>
         ) : filtered.length === 0 ? (
@@ -166,7 +172,7 @@ export default function CashFlowPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map(r => (
+              {paged.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                     {fdate(r.transaction_date)}
@@ -202,6 +208,8 @@ export default function CashFlowPage() {
           </table>
         )}
       </div>
+
+      <Pagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onChange={p => { setPage(p); window.scrollTo(0,0) }} />
 
       {showForm && (
         <CashFlowForm

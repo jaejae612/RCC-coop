@@ -3,7 +3,10 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import Badge from '../../components/ui/Badge'
 import MemberForm from './MemberForm'
+import Pagination from '../../components/ui/Pagination'
 import { computeCreditScore, gradeStyle } from '../../lib/creditScore'
+
+const PAGE_SIZE = 25
 
 function CreditBadge({ grade, score }) {
   const s = gradeStyle(grade)
@@ -27,6 +30,7 @@ export default function MembersPage() {
   const [filterGrade, setFilterGrade] = useState('all')
   const [showForm,    setShowForm]    = useState(false)
   const [editing,     setEditing]     = useState(null)
+  const [page,        setPage]        = useState(1)
 
   useEffect(() => { fetchAll() }, [])
 
@@ -96,6 +100,8 @@ export default function MembersPage() {
     return matchSearch && matchStatus && matchGrade
   })
 
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   const GRADES = ['AA', 'A', 'B', 'C', 'D']
 
   return (
@@ -120,7 +126,7 @@ export default function MembersPage() {
         <input
           type="text"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => { setSearch(e.target.value); setPage(1) }}
           placeholder="Search name or employee ID..."
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -169,7 +175,7 @@ export default function MembersPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         {loading ? (
           <p className="text-center text-sm text-gray-500 py-12">Loading...</p>
         ) : filtered.length === 0 ? (
@@ -188,7 +194,7 @@ export default function MembersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map(m => {
+              {paged.map(m => {
                 const cr = scores[m.id]
                 return (
                   <tr key={m.id} className="hover:bg-gray-50">
@@ -222,6 +228,8 @@ export default function MembersPage() {
           </table>
         )}
       </div>
+
+      <Pagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onChange={p => { setPage(p); window.scrollTo(0,0) }} />
 
       {showForm && canEdit && (
         <MemberForm

@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+/* ── Print styles ─────────────────────────────────────────── */
+.print-only { display: none; }
+
+@media print {
+  aside,
+  .no-print { display: none !important; }
+
+  main { padding: 0 !important; overflow: visible !important; }
+
+  .print-only { display: block !important; }
+
+  /* Remove decorative shadows; add subtle borders */
+  .shadow { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+
+  /* Page-break helpers */
+  .print-break   { page-break-before: always; }
+  .no-page-break { page-break-inside: avoid; }
+
+  /* Keep table headers on every page */
+  thead { display: table-header-group; }
+  tr    { page-break-inside: avoid; page-break-after: auto; }
+
+  /* Preserve background colors in print */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

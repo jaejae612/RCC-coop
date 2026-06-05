@@ -3,7 +3,11 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import Badge from '../../components/ui/Badge'
 import LoanForm from './LoanForm'
+import Pagination from '../../components/ui/Pagination'
 import { computeCreditScore, gradeStyle } from '../../lib/creditScore'
+import { notifyMember } from '../../lib/notify'
+
+const PAGE_SIZE = 25
 
 const STATUSES = ['all', 'pending', 'approved', 'released', 'completed', 'rejected']
 
@@ -47,6 +51,7 @@ export default function LoansPage() {
   const [showForm,      setShowForm]      = useState(false)
   const [editing,       setEditing]       = useState(null)
   const [actionLoading, setActionLoading] = useState(null)
+  const [page,          setPage]          = useState(1)
 
   const role = profile?.role
 
@@ -120,12 +125,43 @@ export default function LoansPage() {
     return matchStatus && matchSearch
   })
 
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   async function updateStatus(loan, newStatus) {
     setActionLoading(loan.id + newStatus)
     const update = { status: newStatus }
     if (newStatus === 'approved') update.date_approved = new Date().toISOString().slice(0, 10)
     if (newStatus === 'released') update.date_released = new Date().toISOString().slice(0, 10)
     await supabase.from('loans').update(update).eq('id', loan.id)
+
+    // Notify the member
+    const memberName = loan.members?.full_name ?? 'Member'
+    if (newStatus === 'approved') {
+      await notifyMember(
+        supabase,
+        loan.member_id,
+        'loan_approved',
+        'Loan Application Approved',
+        `Your loan application #${loan.loan_number} (₱${Number(loan.principal_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}) has been approved.`
+      )
+    } else if (newStatus === 'released') {
+      await notifyMember(
+        supabase,
+        loan.member_id,
+        'loan_released',
+        'Loan Released',
+        `Your loan #${loan.loan_number} has been released. Please coordinate with the treasurer for the details.`
+      )
+    } else if (newStatus === 'rejected') {
+      await notifyMember(
+        supabase,
+        loan.member_id,
+        'loan_rejected',
+        'Loan Application Not Approved',
+        `Your loan application #${loan.loan_number} was not approved at this time. Please contact the office for more information.`
+      )
+    }
+
     setActionLoading(null)
     fetchAll()
   }
@@ -170,7 +206,7 @@ export default function LoansPage() {
               label={s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
               active={statusFilter === s}
               count={s !== 'all' ? counts[s] : 0}
-              onClick={() => setStatusFilter(s)}
+              onClick={() => { setStatusFilter(s); setPage(1) }}
             />
           ))}
         </div>
@@ -184,7 +220,7 @@ export default function LoansPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
         {loading ? (
           <p className="text-center text-sm text-gray-500 py-12">Loading...</p>
         ) : filtered.length === 0 ? (
@@ -206,7 +242,7 @@ export default function LoansPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map(l => {
+              {paged.map(l => {
                 const cr        = scores[l.member_id]
                 const isLoading = (id, action) => actionLoading === id + action
                 return (
@@ -288,6 +324,8 @@ export default function LoansPage() {
           </table>
         )}
       </div>
+
+      <Pagination page={page} pageSize={PAGE_SIZE} total={filtered.length} onChange={p => { setPage(p); window.scrollTo(0,0) }} />
 
       {showForm && (
         <LoanForm

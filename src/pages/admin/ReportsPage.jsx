@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import Badge from '../../components/ui/Badge'
+import Pagination from '../../components/ui/Pagination'
 
 const peso  = n => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
 const fdate = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-PH') : '—'
 
 const TABS = ['Summary', 'Outstanding Loans', 'Contributions by Cutoff', 'Member Roster']
+const PAGE_SIZE = 25
 
 export default function ReportsPage() {
-  const [tab, setTab] = useState(0)
+  const [tab,  setTab]  = useState(0)
+  const [page, setPage] = useState(1)
 
   // ── Data ──────────────────────────────────────────────────
   const [members,       setMembers]       = useState([])
@@ -75,21 +78,42 @@ export default function ReportsPage() {
   // Outstanding loans enriched with member names
   const memberById = Object.fromEntries(members.map(m => [m.id, m]))
 
+  // Paginated slices
+  const pagedOutstanding = releasedLoans.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const pagedPeriods     = periods.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const pagedMembers     = members.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   if (loading) return <p className="text-sm text-gray-500 py-8">Loading reports...</p>
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-800">Reports</h1>
-        <p className="text-sm text-gray-500">Data as of {new Date().toLocaleDateString('en-PH')}</p>
+      {/* Print header (hidden on screen, visible when printing) */}
+      <div className="print-only mb-4 border-b border-gray-300 pb-3">
+        <p className="text-lg font-bold">RCC Cooperative — Reports</p>
+        <p className="text-sm text-gray-600">
+          {TABS[tab]} · as of {new Date().toLocaleDateString('en-PH')}
+        </p>
+      </div>
+
+      <div className="mb-6 flex items-start justify-between flex-wrap gap-3 no-print">
+        <div>
+          <h1 className="text-xl font-bold text-gray-800">Reports</h1>
+          <p className="text-sm text-gray-500">Data as of {new Date().toLocaleDateString('en-PH')}</p>
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="text-sm border border-gray-300 text-gray-600 hover:bg-gray-50 px-4 py-2 rounded-lg"
+        >
+          Print / Save PDF
+        </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit flex-wrap">
+      <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 w-fit flex-wrap no-print">
         {TABS.map((t, i) => (
           <button
             key={t}
-            onClick={() => setTab(i)}
+            onClick={() => { setTab(i); setPage(1) }}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               tab === i
                 ? 'bg-white shadow text-gray-800'
@@ -196,7 +220,7 @@ export default function ReportsPage() {
             </h2>
             <p className="text-sm font-bold text-red-600">{peso(totalOutstanding)} total remaining</p>
           </div>
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="bg-white rounded-xl shadow overflow-x-auto">
             {releasedLoans.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-10">No outstanding loans.</p>
             ) : (
@@ -213,7 +237,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {releasedLoans.map(loan => {
+                  {pagedOutstanding.map(loan => {
                     const paid      = paidByLoan[loan.id] ?? 0
                     const remaining = Math.max(0, Number(loan.total_payable ?? loan.principal_amount) - paid)
                     const mem       = memberById[loan.member_id]
@@ -246,6 +270,7 @@ export default function ReportsPage() {
               </table>
             )}
           </div>
+          <Pagination page={page} pageSize={PAGE_SIZE} total={releasedLoans.length} onChange={setPage} />
         </div>
       )}
 
@@ -273,7 +298,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {periods.map(([period, data]) => (
+                  {pagedPeriods.map(([period, data]) => (
                     <tr key={period} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono font-medium text-gray-800">{period}</td>
                       <td className="px-4 py-3 text-gray-500">{fdate(data.date)}</td>
@@ -294,6 +319,7 @@ export default function ReportsPage() {
               </table>
             )}
           </div>
+          <Pagination page={page} pageSize={PAGE_SIZE} total={periods.length} onChange={setPage} />
         </div>
       )}
 
@@ -319,7 +345,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {members.map(m => {
+                {pagedMembers.map(m => {
                   const capital     = capitalByMember[m.id] ?? 0
                   const activeLoans = loans.filter(l => l.member_id === m.id && l.status === 'released').length
                   return (
@@ -341,6 +367,7 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+          <Pagination page={page} pageSize={PAGE_SIZE} total={members.length} onChange={setPage} />
         </div>
       )}
     </div>

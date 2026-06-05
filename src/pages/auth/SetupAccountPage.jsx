@@ -1,8 +1,17 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+
+const roleHome = {
+  admin:   '/admin/dashboard',
+  officer: '/officer/dashboard',
+  member:  '/member/dashboard',
+  owner:   '/owner/dashboard',
+}
 
 export default function SetupAccountPage() {
   const { profile, completeSetup, signOut } = useAuth()
+  const navigate = useNavigate()
   const memberName = profile?.members?.full_name ?? profile?.display_name ?? 'Member'
 
   const [password, setPassword] = useState('')
@@ -29,8 +38,11 @@ export default function SetupAccountPage() {
 
     if (error) {
       setError(error.message)
+      return
     }
-    // On success, AuthContext sets first_login = false → App.jsx redirects to role home
+
+    // Navigate to the role's home — profile.role is set before first_login changes
+    navigate(roleHome[profile?.role] ?? '/', { replace: true })
   }
 
   return (

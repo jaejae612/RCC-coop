@@ -14,6 +14,7 @@ const adminLinks = [
   { to: '/admin/reports',       label: 'Reports' },
   { to: '/admin/notifications', label: 'Notifications' },
   { to: '/admin/users',         label: 'User Accounts' },
+  { to: '/admin/profile',       label: 'My Profile' },
 ]
 
 const officerLinks = [
@@ -21,6 +22,7 @@ const officerLinks = [
   { to: '/officer/loans',     label: 'Loan Applications' },
   { to: '/officer/members',   label: 'Members' },
   { to: '/officer/reports',   label: 'Reports' },
+  { to: '/officer/profile',   label: 'My Profile' },
 ]
 
 const memberLinks = [
@@ -30,11 +32,13 @@ const memberLinks = [
   { to: '/member/apply',         label: 'Apply for Loan' },
   { to: '/member/dividend',      label: 'My Dividend' },
   { to: '/member/statement',     label: 'Statement' },
+  { to: '/member/profile',       label: 'My Profile' },
 ]
 
 const ownerLinks = [
   { to: '/owner/dashboard', label: 'Dashboard' },
   { to: '/owner/reports',   label: 'Reports' },
+  { to: '/owner/profile',   label: 'My Profile' },
 ]
 
 const linksByRole = {

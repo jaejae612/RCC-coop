@@ -23,6 +23,8 @@ import MemberLoansPage from './pages/member/MemberLoansPage'
 import MemberApplyPage from './pages/member/MemberApplyPage'
 import MemberDividendPage from './pages/member/MemberDividendPage'
 import MemberStatementPage from './pages/member/MemberStatementPage'
+// Shared pages
+import ProfilePage from './pages/shared/ProfilePage'
 
 
 const roleHome = {
@@ -83,6 +85,7 @@ export default function App() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="users" element={<UserAccountsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
           {/* Officer routes — reuse admin pages (role-aware components handle display) */}
@@ -91,6 +94,7 @@ export default function App() {
             <Route path="loans" element={<LoansPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
           {/* Member routes */}
@@ -101,12 +105,14 @@ export default function App() {
             <Route path="apply" element={<MemberApplyPage />} />
             <Route path="dividend" element={<MemberDividendPage />} />
             <Route path="statement" element={<MemberStatementPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
           {/* Owner routes */}
           <Route path="/owner" element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

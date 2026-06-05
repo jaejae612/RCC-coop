@@ -345,40 +345,54 @@ WHERE identity_data->>'email' = 'eras.las@rcccoop.com';
 -- ------------------------------------------------------------------
 -- NEW-1. Nimfa Elustrisimo  (new member — no prior account)
 --        Password: elustrisimo1234  |  first_login = true
+--        Safe to re-run: skips INSERT if account already exists.
 -- ------------------------------------------------------------------
 DO $$
 DECLARE
-  v_user_id   uuid := gen_random_uuid();
-  v_member_id uuid := gen_random_uuid();
+  v_user_id   uuid;
+  v_member_id uuid;
 BEGIN
-  INSERT INTO auth.users (
-    instance_id, id, aud, role, email, encrypted_password,
-    email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data, is_super_admin,
-    confirmation_token, email_change, email_change_token_new, recovery_token
-  ) VALUES (
-    '00000000-0000-0000-0000-000000000000', v_user_id,
-    'authenticated', 'authenticated',
-    'elustrisimonimfa@gmail.com', crypt('elustrisimo1234', gen_salt('bf')),
-    NOW(), NOW(), NOW(),
-    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''
-  );
+  -- Find existing user (account may already have been created)
+  SELECT id INTO v_user_id FROM auth.users WHERE email = 'elustrisimonimfa@gmail.com';
 
-  INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, created_at, updated_at)
-  VALUES (
-    v_user_id, v_user_id, v_user_id,
-    jsonb_build_object(
-      'sub', v_user_id::text,
-      'email', 'elustrisimonimfa@gmail.com',
-      'email_verified', false,
-      'phone_verified', false
-    ),
-    'email', NOW(), NOW()
-  );
+  IF v_user_id IS NULL THEN
+    -- Create auth account only if it doesn't exist yet
+    v_user_id := gen_random_uuid();
+    INSERT INTO auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      raw_app_meta_data, raw_user_meta_data, is_super_admin,
+      confirmation_token, email_change, email_change_token_new, recovery_token
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000', v_user_id,
+      'authenticated', 'authenticated',
+      'elustrisimonimfa@gmail.com', crypt('elustrisimo1234', gen_salt('bf')),
+      NOW(), NOW(), NOW(),
+      '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''
+    );
 
-  INSERT INTO public.members (id, full_name, employment_type, membership_tier, date_joined, status, contribution_per_cutoff)
-  VALUES (v_member_id, 'Nimfa Elustrisimo', 'regular', 'associate_member', CURRENT_DATE, 'active', 0);
+    INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, created_at, updated_at)
+    VALUES (
+      v_user_id, v_user_id, v_user_id,
+      jsonb_build_object(
+        'sub', v_user_id::text,
+        'email', 'elustrisimonimfa@gmail.com',
+        'email_verified', false,
+        'phone_verified', false
+      ),
+      'email', NOW(), NOW()
+    );
+  END IF;
 
+  -- Create member record if not already there
+  SELECT id INTO v_member_id FROM public.members WHERE full_name ILIKE '%nimfa%elustrisimo%';
+  IF v_member_id IS NULL THEN
+    v_member_id := gen_random_uuid();
+    INSERT INTO public.members (id, full_name, employment_type, membership_tier, date_joined, status, contribution_per_cutoff)
+    VALUES (v_member_id, 'Nimfa Elustrisimo', 'regular', 'associate_member', CURRENT_DATE, 'active', 0);
+  END IF;
+
+  -- Link profile (upsert)
   INSERT INTO public.profiles (id, member_id, role, display_name, first_login)
   VALUES (v_user_id, v_member_id, 'member', 'Nimfa Elustrisimo', true)
   ON CONFLICT (id) DO UPDATE SET
@@ -393,39 +407,49 @@ END $$;
 -- ------------------------------------------------------------------
 -- NEW-2. Jun Vincent "JV" Sanchez  (new member — no prior account)
 --        Password: sanchez1234  |  first_login = true
+--        Safe to re-run: skips INSERT if account already exists.
 -- ------------------------------------------------------------------
 DO $$
 DECLARE
-  v_user_id   uuid := gen_random_uuid();
-  v_member_id uuid := gen_random_uuid();
+  v_user_id   uuid;
+  v_member_id uuid;
 BEGIN
-  INSERT INTO auth.users (
-    instance_id, id, aud, role, email, encrypted_password,
-    email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data, is_super_admin,
-    confirmation_token, email_change, email_change_token_new, recovery_token
-  ) VALUES (
-    '00000000-0000-0000-0000-000000000000', v_user_id,
-    'authenticated', 'authenticated',
-    'jvsanchez1103@gmail.com', crypt('sanchez1234', gen_salt('bf')),
-    NOW(), NOW(), NOW(),
-    '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''
-  );
+  SELECT id INTO v_user_id FROM auth.users WHERE email = 'jvsanchez1103@gmail.com';
 
-  INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, created_at, updated_at)
-  VALUES (
-    v_user_id, v_user_id, v_user_id,
-    jsonb_build_object(
-      'sub', v_user_id::text,
-      'email', 'jvsanchez1103@gmail.com',
-      'email_verified', false,
-      'phone_verified', false
-    ),
-    'email', NOW(), NOW()
-  );
+  IF v_user_id IS NULL THEN
+    v_user_id := gen_random_uuid();
+    INSERT INTO auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      raw_app_meta_data, raw_user_meta_data, is_super_admin,
+      confirmation_token, email_change, email_change_token_new, recovery_token
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000', v_user_id,
+      'authenticated', 'authenticated',
+      'jvsanchez1103@gmail.com', crypt('sanchez1234', gen_salt('bf')),
+      NOW(), NOW(), NOW(),
+      '{"provider":"email","providers":["email"]}', '{}', false, '', '', '', ''
+    );
 
-  INSERT INTO public.members (id, full_name, employment_type, membership_tier, date_joined, status, contribution_per_cutoff)
-  VALUES (v_member_id, 'Jun Vincent Sanchez', 'regular', 'regular_member', CURRENT_DATE, 'active', 0);
+    INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, created_at, updated_at)
+    VALUES (
+      v_user_id, v_user_id, v_user_id,
+      jsonb_build_object(
+        'sub', v_user_id::text,
+        'email', 'jvsanchez1103@gmail.com',
+        'email_verified', false,
+        'phone_verified', false
+      ),
+      'email', NOW(), NOW()
+    );
+  END IF;
+
+  SELECT id INTO v_member_id FROM public.members WHERE full_name ILIKE '%jun vincent%sanchez%';
+  IF v_member_id IS NULL THEN
+    v_member_id := gen_random_uuid();
+    INSERT INTO public.members (id, full_name, employment_type, membership_tier, date_joined, status, contribution_per_cutoff)
+    VALUES (v_member_id, 'Jun Vincent Sanchez', 'regular', 'regular_member', CURRENT_DATE, 'active', 0);
+  END IF;
 
   INSERT INTO public.profiles (id, member_id, role, display_name, first_login)
   VALUES (v_user_id, v_member_id, 'member', 'Jun Vincent Sanchez', true)
@@ -487,3 +511,132 @@ WHERE identity_data->>'email' = 'anthony.jose@rcccoop.com';
 UPDATE public.profiles
 SET role = 'admin'
 WHERE id = (SELECT id FROM auth.users WHERE email = 'jjnoname@gmail.com');
+
+-- ------------------------------------------------------------------
+-- 32. Edgardo Judico  (edgardo.judico@rcccoop.com)
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'edgardojudico@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'edgardo.judico@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"edgardojudico@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'edgardo.judico@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 33. Cirila Jorolan  (cerela.jorulan@rcccoop.com)
+--     Confirmed name: Cirila Jorolan (seed had "Cerela Jorulan")
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'cirilajorolan@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'cerela.jorulan@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"cirilajorolan@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'cerela.jorulan@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 34. Maria Rosario Sagarino  (maria.gonzales@rcccoop.com)
+--     Confirmed: same person as "Maria Gonzales" in seed — update name too
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'mariarosariozagarino@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'maria.gonzales@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"mariarosariozagarino@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'maria.gonzales@rcccoop.com';
+
+UPDATE public.members
+SET full_name = 'Maria Rosario Sagarino'
+WHERE full_name ILIKE '%maria%gonzales%';
+
+-- ------------------------------------------------------------------
+-- 35. Roselyn Amit  (roselyn.amit@rcccoop.com)
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'amitroselyn34@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'roselyn.amit@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"amitroselyn34@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'roselyn.amit@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 36. Marilyn Amit  (marilyn.amit@rcccoop.com)
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'marilynamit9@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'marilyn.amit@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"marilynamit9@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'marilyn.amit@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 37. Liberata Canacao  (liberata.canacao@rcccoop.com)
+--     NOTE: Wilfredo Canacao submitted the same email — collect a
+--     separate address for Wilfredo before updating his account.
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'acting.canacao@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'liberata.canacao@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"acting.canacao@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'liberata.canacao@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 38. Myrna Almocera  (myrna.almocera@rcccoop.com)
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'solissheenarose@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'myrna.almocera@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"solissheenarose@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'myrna.almocera@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 39. Rogelito Salvo  (rogelito.salvo@rcccoop.com)
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'salvojhon6@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'rogelito.salvo@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"salvojhon6@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'rogelito.salvo@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 40. Mary Rose Gonzales  (mary.gonzales@rcccoop.com)
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'gonzalesmaryrose42@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'mary.gonzales@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"gonzalesmaryrose42@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'mary.gonzales@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 41. Romeo Ramirez Jr.  (romeo.ramirez@rcccoop.com)
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'romeoramirezjr26@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'romeo.ramirez@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"romeoramirezjr26@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'romeo.ramirez@rcccoop.com';
+
+-- ------------------------------------------------------------------
+-- 42. Joseph Yap Bracero  (joseph.bracero@rcccoop.com)
+-- ------------------------------------------------------------------
+UPDATE auth.users
+SET email = 'josephyapbracero031947@gmail.com', email_confirmed_at = NOW(), updated_at = NOW()
+WHERE email = 'joseph.bracero@rcccoop.com';
+
+UPDATE auth.identities
+SET identity_data = jsonb_set(identity_data, '{email}', '"josephyapbracero031947@gmail.com"'), updated_at = NOW()
+WHERE identity_data->>'email' = 'joseph.bracero@rcccoop.com';

@@ -43,22 +43,36 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
+  async function updatePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    return { error }
+  }
+
+  async function refreshProfile() {
+    if (session) await fetchProfile(session.user.id)
+  }
+
   // Called from SetupAccountPage on first login — only sets a new password
   async function completeSetup(newPassword) {
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
-    if (error) return { error }
+    // Update first_login BEFORE changing the password so that the
+    // onAuthStateChange triggered by updateUser re-fetches a profile
+    // that already has first_login: false, avoiding a race condition.
     const { error: profileError } = await supabase
       .from('profiles')
       .update({ first_login: false })
       .eq('id', session.user.id)
     if (profileError) return { error: profileError }
-    // Refresh profile state so the redirect fires
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) return { error }
+
+    // Ensure local profile state reflects first_login: false before returning
     await fetchProfile(session.user.id)
     return { error: null }
   }
 
   return (
-    <AuthContext.Provider value={{ session, profile, loading, signIn, signOut, completeSetup }}>
+    <AuthContext.Provider value={{ session, profile, loading, signIn, signOut, completeSetup, updatePassword, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

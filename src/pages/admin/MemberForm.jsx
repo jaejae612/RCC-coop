@@ -23,6 +23,11 @@ function AccountSection({ memberId, memberEmail }) {
   const [creating,    setCreating]    = useState(false)
   const [createError, setCreateError] = useState('')
   const [createdCreds, setCreatedCreds] = useState(null)
+  // Link existing account
+  const [showLink,  setShowLink]  = useState(false)
+  const [linkEmail, setLinkEmail] = useState(memberEmail ?? '')
+  const [linking,   setLinking]   = useState(false)
+  const [linkError, setLinkError] = useState('')
 
   useEffect(() => { fetchProfile() }, [memberId])
 
@@ -63,6 +68,36 @@ function AccountSection({ memberId, memberEmail }) {
     }
     setCreatedCreds({ email: createEmail, password })
     setShowCreate(false)
+    fetchProfile()
+  }
+
+  async function handleLink(e) {
+    e.preventDefault()
+    setLinkError('')
+    setLinking(true)
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id, member_id')
+      .eq('email', linkEmail.toLowerCase().trim())
+      .maybeSingle()
+    if (!existing) {
+      setLinkError('No account found with that email.')
+      setLinking(false)
+      return
+    }
+    if (existing.member_id && existing.member_id !== memberId) {
+      setLinkError('That account is already linked to a different member.')
+      setLinking(false)
+      return
+    }
+    const { error } = await supabase
+      .from('profiles')
+      .update({ member_id: memberId })
+      .eq('id', existing.id)
+    setLinking(false)
+    if (error) { setLinkError(error.message); return }
+    setShowLink(false)
+    setLinkEmail('')
     fetchProfile()
   }
 
@@ -169,16 +204,59 @@ function AccountSection({ memberId, memberEmail }) {
             </button>
           </div>
         </form>
+      ) : showLink ? (
+        /* Link existing account form */
+        <form onSubmit={handleLink} className="space-y-3">
+          <p className="text-xs text-gray-500">Enter the login email of the existing account to link it to this member.</p>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Existing Account Email</label>
+            <input
+              type="email"
+              value={linkEmail}
+              onChange={e => setLinkEmail(e.target.value)}
+              required
+              placeholder="e.g. jose.uy.globe@gmail.com"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {linkError && (
+            <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">{linkError}</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setShowLink(false); setLinkError('') }}
+              className="flex-1 text-xs text-gray-500 hover:text-gray-700 py-1.5 border border-gray-200 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={linking || !linkEmail}
+              className="flex-1 text-xs bg-green-600 text-white py-1.5 rounded-lg disabled:opacity-50 hover:bg-green-700"
+            >
+              {linking ? 'Linking...' : 'Link Account'}
+            </button>
+          </div>
+        </form>
       ) : (
-        /* No account */
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-400">No login account yet</p>
-          <button
-            onClick={() => { setCreateEmail(memberEmail ?? ''); setShowCreate(true) }}
-            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-          >
-            Create Account
-          </button>
+        /* No account — show both options */
+        <div className="space-y-2">
+          <p className="text-xs text-gray-400">No login account linked to this member.</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setLinkEmail(memberEmail ?? ''); setShowLink(true) }}
+              className="flex-1 text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700"
+            >
+              Link Existing
+            </button>
+            <button
+              onClick={() => { setCreateEmail(memberEmail ?? ''); setShowCreate(true) }}
+              className="flex-1 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+            >
+              Create New
+            </button>
+          </div>
         </div>
       )}
     </div>

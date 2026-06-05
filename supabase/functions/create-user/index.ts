@@ -72,17 +72,15 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Create the profile row
-    const profilePayload: Record<string, unknown> = {
-      id: newUser.user.id,
-      role,
-      first_login: true,
-    }
-    if (member_id) profilePayload.member_id = member_id
+    // The on_auth_user_created trigger already inserted a profile row.
+    // Update it with the correct role, first_login flag, and optional member_id.
+    const updatePayload: Record<string, unknown> = { role, first_login: true }
+    if (member_id) updatePayload.member_id = member_id
 
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert(profilePayload)
+      .update(updatePayload)
+      .eq('id', newUser.user.id)
 
     if (profileError) {
       // Roll back — delete the auth user so we don't leave orphaned accounts

@@ -1,26 +1,35 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
+const SUFFIXES = ['', 'Jr.', 'Sr.', 'II', 'III', 'IV', 'V']
+
 export default function MemberForm({ member, onClose, onSaved }) {
   const isEdit = !!member
   const [form, setForm] = useState({
-    full_name: member?.full_name ?? '',
-    employee_id: member?.employee_id ?? '',
-    position: member?.position ?? '',
-    department: member?.department ?? '',
-    contact_number: member?.contact_number ?? '',
-    employment_type: member?.employment_type ?? 'regular',
-    membership_tier: member?.membership_tier ?? 'regular_member',
-    date_joined: member?.date_joined ?? '',
-    status: member?.status ?? 'active',
+    first_name:              member?.first_name              ?? '',
+    last_name:               member?.last_name               ?? '',
+    name_suffix:             member?.name_suffix             ?? '',
+    employee_id:             member?.employee_id             ?? '',
+    position:                member?.position                ?? '',
+    department:              member?.department               ?? '',
+    contact_number:          member?.contact_number          ?? '',
+    address:                 member?.address                 ?? '',
+    employment_type:         member?.employment_type         ?? 'regular',
+    membership_tier:         member?.membership_tier         ?? 'regular_member',
+    date_joined:             member?.date_joined             ?? '',
+    status:                  member?.status                  ?? 'active',
     contribution_per_cutoff: member?.contribution_per_cutoff ?? '',
   })
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [error,  setError]  = useState('')
 
   function set(field, value) {
     setForm(f => ({ ...f, [field]: value }))
   }
+
+  // Auto-computed preview
+  const fullName = [form.first_name.trim(), form.last_name.trim(), form.name_suffix.trim()]
+    .filter(Boolean).join(' ')
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -29,6 +38,9 @@ export default function MemberForm({ member, onClose, onSaved }) {
 
     const payload = {
       ...form,
+      full_name:               fullName,
+      name_suffix:             form.name_suffix.trim() || null,
+      address:                 form.address.trim() || null,
       contribution_per_cutoff: Number(form.contribution_per_cutoff) || 0,
     }
 
@@ -56,9 +68,42 @@ export default function MemberForm({ member, onClose, onSaved }) {
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
-          <Field label="Full Name *">
-            <input required value={form.full_name} onChange={e => set('full_name', e.target.value)} className={input} />
+
+          {/* ── Name ──────────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="First Name *">
+              <input
+                required
+                value={form.first_name}
+                onChange={e => set('first_name', e.target.value)}
+                placeholder="e.g. Juan"
+                className={input}
+              />
+            </Field>
+            <Field label="Last Name *">
+              <input
+                required
+                value={form.last_name}
+                onChange={e => set('last_name', e.target.value)}
+                placeholder="e.g. Dela Cruz"
+                className={input}
+              />
+            </Field>
+          </div>
+
+          <Field label="Suffix (optional)">
+            <select value={form.name_suffix} onChange={e => set('name_suffix', e.target.value)} className={input}>
+              {SUFFIXES.map(s => <option key={s} value={s}>{s || '— None —'}</option>)}
+            </select>
           </Field>
+
+          {fullName && (
+            <p className="text-xs text-gray-400">
+              Full name: <span className="font-medium text-gray-600">{fullName}</span>
+            </p>
+          )}
+
+          {/* ── Contact / IDs ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-4">
             <Field label="Employee ID">
               <input value={form.employee_id} onChange={e => set('employee_id', e.target.value)} className={input} />
@@ -67,6 +112,7 @@ export default function MemberForm({ member, onClose, onSaved }) {
               <input value={form.contact_number} onChange={e => set('contact_number', e.target.value)} className={input} />
             </Field>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Position">
               <input value={form.position} onChange={e => set('position', e.target.value)} className={input} />
@@ -75,6 +121,18 @@ export default function MemberForm({ member, onClose, onSaved }) {
               <input value={form.department} onChange={e => set('department', e.target.value)} className={input} />
             </Field>
           </div>
+
+          <Field label="Address (optional)">
+            <textarea
+              value={form.address}
+              onChange={e => set('address', e.target.value)}
+              rows={2}
+              placeholder="e.g. 123 Rizal St., Cebu City"
+              className={`${input} resize-none`}
+            />
+          </Field>
+
+          {/* ── Membership ─────────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-4">
             <Field label="Employment Type">
               <select value={form.employment_type} onChange={e => set('employment_type', e.target.value)} className={input}>
@@ -89,9 +147,16 @@ export default function MemberForm({ member, onClose, onSaved }) {
               </select>
             </Field>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Date Joined *">
-              <input required type="date" value={form.date_joined} onChange={e => set('date_joined', e.target.value)} className={input} />
+              <input
+                required
+                type="date"
+                value={form.date_joined}
+                onChange={e => set('date_joined', e.target.value)}
+                className={input}
+              />
             </Field>
             <Field label="Status">
               <select value={form.status} onChange={e => set('status', e.target.value)} className={input}>
@@ -101,6 +166,7 @@ export default function MemberForm({ member, onClose, onSaved }) {
               </select>
             </Field>
           </div>
+
           <Field label="Default Contribution per Cutoff (₱)">
             <input
               type="number"

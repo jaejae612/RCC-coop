@@ -36,53 +36,56 @@ export default function MembersPage() {
 
   async function fetchAll() {
     setLoading(true)
+    try {
+      const [
+        { data: m },
+        { data: c },
+        { data: l },
+        { data: p },
+      ] = await Promise.all([
+        supabase.from('members').select('*').order('full_name'),
+        supabase.from('contributions').select('member_id, amount'),
+        supabase.from('loans').select('member_id, id, total_payable, principal_amount, status'),
+        supabase.from('loan_payments').select('loan_id, amount_paid'),
+      ])
 
-    const [
-      { data: m },
-      { data: c },
-      { data: l },
-      { data: p },
-    ] = await Promise.all([
-      supabase.from('members').select('*').order('full_name'),
-      supabase.from('contributions').select('member_id, amount'),
-      supabase.from('loans').select('member_id, id, total_payable, principal_amount, status'),
-      supabase.from('loan_payments').select('loan_id, amount_paid'),
-    ]).catch(() => [
-      { data: null }, { data: null }, { data: null }, { data: null },
-    ])
+      const members = m ?? []
 
-    const members = m ?? []
+      // Group by member / loan
+      const contribsByMember = {}
+      const loansByMember    = {}
+      const paymentsByLoan   = {}
 
-    // Group by member / loan
-    const contribsByMember = {}
-    const loansByMember    = {}
-    const paymentsByLoan   = {}
+      for (const row of (c ?? [])) {
+        if (!contribsByMember[row.member_id]) contribsByMember[row.member_id] = []
+        contribsByMember[row.member_id].push(row)
+      }
+      for (const loan of (l ?? [])) {
+        if (!loansByMember[loan.member_id]) loansByMember[loan.member_id] = []
+        loansByMember[loan.member_id].push(loan)
+      }
+      for (const pay of (p ?? [])) {
+        if (!paymentsByLoan[pay.loan_id]) paymentsByLoan[pay.loan_id] = []
+        paymentsByLoan[pay.loan_id].push(pay)
+      }
 
-    for (const c of (c ?? [])) {
-      if (!contribsByMember[c.member_id]) contribsByMember[c.member_id] = []
-      contribsByMember[c.member_id].push(c)
+      // Compute score per member
+      const computed = {}
+      for (const mem of members) {
+        const mContribs  = contribsByMember[mem.id] ?? []
+        const mLoans     = loansByMember[mem.id]    ?? []
+        const mPayments  = mLoans.flatMap(loan => paymentsByLoan[loan.id] ?? [])
+        computed[mem.id] = computeCreditScore(mem, mContribs, mLoans, mPayments)
+      }
+
+      setMembers(members)
+      setScores(computed)
+    } catch {
+      setMembers([])
+      setScores({})
+    } finally {
+      setLoading(false)
     }
-    for (const loan of (l ?? [])) {
-      if (!loansByMember[loan.member_id]) loansByMember[loan.member_id] = []
-      loansByMember[loan.member_id].push(loan)
-    }
-    for (const pay of (p ?? [])) {
-      if (!paymentsByLoan[pay.loan_id]) paymentsByLoan[pay.loan_id] = []
-      paymentsByLoan[pay.loan_id].push(pay)
-    }
-
-    // Compute score per member
-    const computed = {}
-    for (const mem of members) {
-      const mContribs  = contribsByMember[mem.id] ?? []
-      const mLoans     = loansByMember[mem.id]    ?? []
-      const mPayments  = mLoans.flatMap(loan => paymentsByLoan[loan.id] ?? [])
-      computed[mem.id] = computeCreditScore(mem, mContribs, mLoans, mPayments)
-    }
-
-    setMembers(members)
-    setScores(computed)
-    setLoading(false)
   }
 
   function openAdd()  { setEditing(null); setShowForm(true) }

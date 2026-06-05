@@ -98,7 +98,8 @@ export default function MembersPage() {
   }
 
   const filtered = members.filter(m => {
-    const matchSearch  = m.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    const name = `${m.first_name ?? ''} ${m.last_name ?? ''} ${m.name_suffix ?? ''}`.toLowerCase()
+    const matchSearch  = name.includes(search.toLowerCase()) ||
       (m.employee_id ?? '').toLowerCase().includes(search.toLowerCase())
     const matchStatus  = filterStatus === 'all' || m.status === filterStatus
     const matchGrade   = filterGrade  === 'all' || (scores[m.id]?.grade ?? '') === filterGrade
@@ -189,7 +190,8 @@ export default function MembersPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">First Name</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Last Name</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Employee ID</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Tier</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
@@ -203,7 +205,10 @@ export default function MembersPage() {
                 const cr = scores[m.id]
                 return (
                   <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{m.full_name}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800">{m.first_name ?? '—'}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800">
+                      {m.last_name ?? '—'}{m.name_suffix ? ` ${m.name_suffix}` : ''}
+                    </td>
                     <td className="px-4 py-3 text-gray-500">{m.employee_id ?? '—'}</td>
                     <td className="px-4 py-3"><Badge value={m.membership_tier} /></td>
                     <td className="px-4 py-3"><Badge value={m.status} /></td>

@@ -62,6 +62,16 @@ function RequireAuth({ children }) {
   return children
 }
 
+// Guards role-specific sections — redirects to own home if wrong role
+function RequireRole({ roles, children }) {
+  const { profile, loading } = useAuth()
+  if (loading) return <p className="p-8 text-gray-500 text-sm">Loading...</p>
+  if (!roles.includes(profile?.role)) {
+    return <Navigate to={roleHome[profile?.role] ?? '/login'} replace />
+  }
+  return children
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -72,7 +82,7 @@ export default function App() {
           <Route path="/" element={<RootRedirect />} />
 
           {/* Admin routes */}
-          <Route path="/admin" element={<RequireAuth><AppLayout /></RequireAuth>}>
+          <Route path="/admin" element={<RequireAuth><RequireRole roles={['admin']}><AppLayout /></RequireRole></RequireAuth>}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="contributions" element={<ContributionsPage />} />
@@ -87,7 +97,7 @@ export default function App() {
           </Route>
 
           {/* Officer routes — reuse admin pages (role-aware components handle display) */}
-          <Route path="/officer" element={<RequireAuth><AppLayout /></RequireAuth>}>
+          <Route path="/officer" element={<RequireAuth><RequireRole roles={['officer']}><AppLayout /></RequireRole></RequireAuth>}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="loans" element={<LoansPage />} />
             <Route path="members" element={<MembersPage />} />
@@ -96,7 +106,7 @@ export default function App() {
           </Route>
 
           {/* Member routes */}
-          <Route path="/member" element={<RequireAuth><AppLayout /></RequireAuth>}>
+          <Route path="/member" element={<RequireAuth><RequireRole roles={['member']}><AppLayout /></RequireRole></RequireAuth>}>
             <Route path="dashboard" element={<MemberDashboardPage />} />
             <Route path="contributions" element={<MemberContributionsPage />} />
             <Route path="loans" element={<MemberLoansPage />} />
@@ -107,7 +117,7 @@ export default function App() {
           </Route>
 
           {/* Owner routes */}
-          <Route path="/owner" element={<RequireAuth><AppLayout /></RequireAuth>}>
+          <Route path="/owner" element={<RequireAuth><RequireRole roles={['owner']}><AppLayout /></RequireRole></RequireAuth>}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="profile" element={<ProfilePage />} />

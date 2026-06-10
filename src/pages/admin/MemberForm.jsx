@@ -300,9 +300,11 @@ export default function MemberForm({ member, onClose, onSaved }) {
     const payload = {
       ...form,
       full_name:               fullName,
-      name_suffix:             form.name_suffix.trim() || null,
-      address:                 form.address.trim() || null,
-      email:                   form.email.trim() || null,
+      name_suffix:             form.name_suffix.trim()   || null,
+      address:                 form.address.trim()       || null,
+      email:                   form.email.trim()         || null,
+      employee_id:             form.employee_id.trim()   || null,
+      contact_number:          form.contact_number.trim()|| null,
       contribution_per_cutoff: Number(form.contribution_per_cutoff) || 0,
     }
 

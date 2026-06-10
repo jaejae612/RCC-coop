@@ -13,21 +13,64 @@ function Field({ label, children }) {
   )
 }
 
+// Returns ISO week number (1-53) for a given date
+function getISOWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const day = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+}
+
+// Returns the ISO week year (may differ from calendar year near Jan 1)
+function getISOWeekYear(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const day = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - day)
+  return d.getUTCFullYear()
+}
+
+// Returns Monday date of a given ISO week string e.g. '2026-W23'
+function weekMonday(isoWeekStr) {
+  const [yearStr, wStr] = isoWeekStr.split('-W')
+  const year = Number(yearStr)
+  const week = Number(wStr)
+  const jan4 = new Date(year, 0, 4)
+  const monday = new Date(jan4)
+  monday.setDate(jan4.getDate() - ((jan4.getDay() || 7) - 1) + (week - 1) * 7)
+  return monday
+}
+
+// Returns Saturday (end of week) date string for a given ISO week string
+function weekSaturday(isoWeekStr) {
+  const mon = weekMonday(isoWeekStr)
+  const sat = new Date(mon)
+  sat.setDate(mon.getDate() + 5)
+  return sat.toISOString().slice(0, 10)
+}
+
+// Human-readable label e.g. '2026-W23' → 'W23 · Jun 2–7, 2026'
+function weekLabel(isoWeekStr) {
+  const mon = weekMonday(isoWeekStr)
+  const sat = new Date(mon); sat.setDate(mon.getDate() + 5)
+  const fmt = d => d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+  const [yearStr, wStr] = isoWeekStr.split('-W')
+  return `W${wStr} · ${fmt(mon)}–${fmt(sat)}, ${yearStr}`
+}
+
 function getCutoffOptions() {
   const options = []
   const now = new Date()
-  for (let i = 0; i < 13; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    options.push(`${year}-${month}-2ND`)
-    options.push(`${year}-${month}-1ST`)
+  // Generate last 56 weeks (≈13 months) plus 2 upcoming weeks
+  for (let i = -2; i < 57; i++) {
+    const d = new Date(now)
+    d.setDate(now.getDate() - i * 7)
+    const year = getISOWeekYear(d)
+    const week = getISOWeek(d)
+    options.push(`${year}-W${String(week).padStart(2, '0')}`)
   }
-  return options
-}
-
-function lastDayOfMonth(year, month) {
-  return new Date(Number(year), Number(month), 0).getDate()
+  // Deduplicate and sort descending (most recent first)
+  return [...new Set(options)].sort().reverse()
 }
 
 export default function ContributionForm({ contribution, onClose, onSaved }) {
@@ -71,12 +114,7 @@ export default function ContributionForm({ contribution, onClose, onSaved }) {
   function handleCutoffPeriodChange(period) {
     set('cutoff_period', period)
     if (period) {
-      const parts = period.split('-')
-      const year = parts[0]
-      const month = parts[1]
-      const half = parts[2]
-      const day = half === '1ST' ? 15 : lastDayOfMonth(year, month)
-      set('cutoff_date', `${year}-${month}-${String(day).padStart(2, '0')}`)
+      set('cutoff_date', weekSaturday(period))
     }
   }
 
@@ -142,7 +180,7 @@ export default function ContributionForm({ contribution, onClose, onSaved }) {
               >
                 <option value="">Select period...</option>
                 {cutoffOptions.map(p => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p}>{weekLabel(p)}</option>
                 ))}
               </select>
             </Field>

@@ -101,9 +101,11 @@ export default function MemberApplyPage() {
 
   const { monthly, total } = computeLoan(form.principal_amount, 2, form.term_months)
 
-  // Eligibility check
-  const minCutoffs = memberInfo?.membership_tier === 'associate_member' ? 12 : 6
-  const isEligible = (memberInfo?.cutoffCount ?? 0) >= minCutoffs
+  // Eligibility check — weekly cutoffs (≈4.3/month)
+  // Regular member:   13 weeks ≈ 3 months minimum
+  // Associate member: 26 weeks ≈ 6 months minimum
+  const minCutoffs = memberInfo?.membership_tier === 'associate_member' ? 26 : 13
+  const meetsMinCutoffs = (memberInfo?.cutoffCount ?? 0) >= minCutoffs
   const maxLoan = memberInfo?.membership_tier === 'associate_member' ? 30000 : 50000
 
   if (submitted) {
@@ -133,16 +135,16 @@ export default function MemberApplyPage() {
 
       {/* Eligibility info */}
       {memberInfo && (
-        <div className={`rounded-xl p-4 mb-6 text-sm ${isEligible ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
-          <div className="font-medium mb-1 text-gray-700">Eligibility Status</div>
+        <div className="rounded-xl p-4 mb-6 text-sm bg-gray-50 border border-gray-200">
+          <div className="font-medium mb-1 text-gray-700">Membership Info</div>
           <div className="text-gray-600 space-y-0.5">
             <div>Tier: <span className="capitalize font-medium">{memberInfo.membership_tier?.replace(/_/g, ' ')}</span></div>
-            <div>Contributions: <span className="font-medium">{memberInfo.cutoffCount} cutoffs</span> (need {minCutoffs})</div>
+            <div>Contributions: <span className="font-medium">{memberInfo.cutoffCount} cutoffs</span> (recommended: {minCutoffs})</div>
             <div>Max loan amount: <span className="font-medium">₱{maxLoan.toLocaleString('en-PH')}</span></div>
           </div>
-          {!isEligible && (
+          {!meetsMinCutoffs && (
             <p className="text-amber-700 text-xs mt-2 font-medium">
-              You need {minCutoffs - memberInfo.cutoffCount} more contribution cutoff{minCutoffs - memberInfo.cutoffCount !== 1 ? 's' : ''} to be eligible.
+              Note: You have fewer than the recommended {minCutoffs} contribution cutoffs. Your application will be subject to admin evaluation.
             </p>
           )}
         </div>
@@ -213,16 +215,14 @@ export default function MemberApplyPage() {
 
         <button
           type="submit"
-          disabled={saving || !isEligible}
+          disabled={saving}
           className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg"
         >
           {saving ? 'Submitting...' : 'Submit Application'}
         </button>
-        {!isEligible && memberInfo && (
-          <p className="text-xs text-center text-gray-400">
-            You do not yet meet the minimum contribution requirements.
-          </p>
-        )}
+        <p className="text-xs text-center text-gray-400">
+          All applications are reviewed and approved by the admin.
+        </p>
       </form>
     </div>
   )

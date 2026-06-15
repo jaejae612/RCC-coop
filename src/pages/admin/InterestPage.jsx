@@ -136,7 +136,7 @@ export default function InterestPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-800">Monthly Interest</h1>
-          <p className="text-sm text-gray-500">2% per month on outstanding balance</p>
+          <p className="text-sm text-gray-500">Interest = Beginning Balance × Loan Rate% — charged monthly per released loan</p>
         </div>
       </div>
 
@@ -202,7 +202,8 @@ export default function InterestPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Loan</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Month</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-600">Beg. Balance</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Interest (2%)</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Rate</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Interest Charged</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -214,13 +215,16 @@ export default function InterestPage() {
                   </td>
                   <td className="px-4 py-3 font-mono text-gray-700">{c.charge_month}</td>
                   <td className="px-4 py-3 text-right text-gray-700">{peso(c.beginning_balance)}</td>
+                  <td className="px-4 py-3 text-right text-gray-500">
+                    {c.loans?.interest_rate != null ? `${c.loans.interest_rate}%` : '—'}
+                  </td>
                   <td className="px-4 py-3 text-right font-semibold text-amber-700">{peso(c.interest_amount)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="bg-gray-50 border-t border-gray-200">
               <tr>
-                <td colSpan={4} className="px-4 py-2 text-sm font-medium text-gray-600">Total Interest</td>
+                <td colSpan={5} className="px-4 py-2 text-sm font-medium text-gray-600">Total Interest</td>
                 <td className="px-4 py-2 text-right text-sm font-bold text-amber-700">{peso(totalInterest)}</td>
               </tr>
             </tfoot>

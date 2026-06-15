@@ -47,7 +47,7 @@ export default function MemberApplyPage() {
   useEffect(() => {
     if (!profile?.member_id) return
     Promise.all([
-      supabase.from('members').select('full_name, membership_tier, date_joined, contribution_per_cutoff').eq('id', profile.member_id).single(),
+      supabase.from('members').select('full_name, membership_tier, date_joined, contribution_per_cutoff, status').eq('id', profile.member_id).single(),
       supabase.from('contributions').select('id', { count: 'exact', head: true }).eq('member_id', profile.member_id),
     ]).then(([{ data: member }, { count: cutoffs }]) => {
       setMemberInfo({ ...member, cutoffCount: cutoffs ?? 0 })
@@ -107,6 +107,23 @@ export default function MemberApplyPage() {
   const minCutoffs = memberInfo?.membership_tier === 'associate_member' ? 26 : 13
   const meetsMinCutoffs = (memberInfo?.cutoffCount ?? 0) >= minCutoffs
   const maxLoan = memberInfo?.membership_tier === 'associate_member' ? 30000 : 50000
+
+  const memberStatus = memberInfo?.status
+  const isInactive = memberStatus && memberStatus !== 'active'
+
+  if (isInactive) {
+    const statusLabel = memberStatus === 'on_leave' ? 'on leave' : 'inactive'
+    return (
+      <div className="max-w-lg mx-auto mt-12 bg-white rounded-xl shadow p-8 text-center">
+        <div className="text-4xl mb-3">⚠</div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">Membership Not Active</h2>
+        <p className="text-sm text-gray-500">
+          Your membership is currently <strong>{statusLabel}</strong>. Loan applications require an active membership status.
+          Please contact the admin to reactivate your account.
+        </p>
+      </div>
+    )
+  }
 
   if (submitted) {
     return (

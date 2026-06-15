@@ -23,7 +23,7 @@ function currentMonth() {
 }
 
 export default function InterestPage() {
-  const { session } = useAuth()
+  const { session, profile } = useAuth()
   const [charges, setCharges] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState(currentMonth())
@@ -106,7 +106,18 @@ export default function InterestPage() {
     let inserted = 0
     if (toInsert.length > 0) {
       const { error } = await supabase.from('loan_interest_charges').insert(toInsert)
-      if (!error) inserted = toInsert.length
+      if (!error) {
+        inserted = toInsert.length
+        // Audit log
+        await supabase.from('audit_log').insert({
+          action:            'interest_batch_run',
+          table_name:        'loan_interest_charges',
+          performed_by:      profile?.id,
+          performed_by_role: profile?.role,
+          new_value:         { charge_month: selectedMonth, charges_created: inserted },
+          notes:             `Interest batch for ${selectedMonth} — ${inserted} charge${inserted !== 1 ? 's' : ''} created`,
+        }).catch(() => {})
+      }
     }
 
     const skipped = releasedLoans.length - alreadyCharged.size - toInsert.length

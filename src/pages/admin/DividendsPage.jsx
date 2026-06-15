@@ -90,21 +90,38 @@ export default function DividendsPage() {
       .gte('charge_month', monthStart)
       .lte('charge_month', monthEnd)
 
+    // Get outstanding loan balances per member (released loans only)
+    const [{ data: releasedLoans }, { data: loanPayments }] = await Promise.all([
+      supabase.from('loans').select('id, member_id, principal_amount').eq('status', 'released'),
+      supabase.from('loan_payments').select('loan_id, amount_paid'),
+    ])
+
     // Aggregate
-    const capitalByMember  = {}
-    const interestByMember = {}
-    for (const c of (contribs ?? []))    capitalByMember[c.member_id]  = (capitalByMember[c.member_id]  ?? 0) + Number(c.amount)
-    for (const i of (intCharges ?? []))  interestByMember[i.member_id] = (interestByMember[i.member_id] ?? 0) + Number(i.interest_amount)
+    const capitalByMember     = {}
+    const interestByMember    = {}
+    const paidByLoan          = {}
+    const outstandingByMember = {}
+
+    for (const c of (contribs ?? []))      capitalByMember[c.member_id]  = (capitalByMember[c.member_id]  ?? 0) + Number(c.amount)
+    for (const i of (intCharges ?? []))    interestByMember[i.member_id] = (interestByMember[i.member_id] ?? 0) + Number(i.interest_amount)
+    for (const p of (loanPayments ?? []))  paidByLoan[p.loan_id]         = (paidByLoan[p.loan_id]         ?? 0) + Number(p.amount_paid)
+    for (const loan of (releasedLoans ?? [])) {
+      const balance = Math.max(0, Number(loan.principal_amount) - (paidByLoan[loan.id] ?? 0))
+      outstandingByMember[loan.member_id] = (outstandingByMember[loan.member_id] ?? 0) + balance
+    }
 
     const rate     = Number(compRate)
     const patRate  = Number(compPatronage)
 
     const rows = members.map(m => {
-      const capital   = capitalByMember[m.id]  ?? 0
-      const intPaid   = interestByMember[m.id] ?? 0
-      const interest  = Math.round(capital * (rate    / 100) * 100) / 100
-      const patronage = Math.round(intPaid  * (patRate / 100) * 100) / 100
-      const total     = Math.round((interest + patronage) * 100) / 100
+      const capital    = capitalByMember[m.id]     ?? 0
+      const intPaid    = interestByMember[m.id]    ?? 0
+      const loanBal    = outstandingByMember[m.id] ?? 0
+      const interest   = Math.round(capital  * (rate    / 100) * 100) / 100
+      const patronage  = Math.round(intPaid   * (patRate / 100) * 100) / 100
+      const total      = Math.round((interest + patronage) * 100) / 100
+      const deduction  = Math.min(loanBal, total)  // never deduct more than total earnings
+      const cash       = Math.max(0, Math.round((total - deduction) * 100) / 100)
       return {
         member_id:           m.id,
         full_name:           m.full_name,
@@ -116,8 +133,8 @@ export default function DividendsPage() {
         patronage_rate:      patRate,
         patronage_refund:    patronage,
         total_earnings:      total,
-        loan_deduction:      0,
-        cash_released:       total,
+        loan_deduction:      deduction,
+        cash_released:       cash,
         fiscal_year:         compYear,
       }
     }).sort((a, b) => a.full_name.localeCompare(b.full_name))
@@ -155,6 +172,15 @@ export default function DividendsPage() {
       setSaveResult({ ok: false, msg: error.message })
     } else {
       setSaveResult({ ok: true, msg: `${payload.length} dividend records saved for ${compYear}.` })
+      // Audit log
+      await supabase.from('audit_log').insert({
+        action:            'dividend_batch_posted',
+        table_name:        'dividends',
+        performed_by:      profile?.id,
+        performed_by_role: profile?.role,
+        new_value:         { fiscal_year: compYear, member_count: payload.length },
+        notes:             `Batch dividend computation posted for ${compYear} — ${payload.length} members`,
+      }).catch(() => {})
       fetchAll()
     }
   }
@@ -237,6 +263,7 @@ export default function DividendsPage() {
           <p className="text-xs text-gray-400 mb-4">
             Interest = Capital × {compRate || '?'}% · Patronage = Interest Paid × {compPatronage}%
             · Fiscal year covers Apr {compYear.split('-')[0]} – Mar {compYear.split('-')[1]}
+            · Loan deduction is auto-calculated from each member's current outstanding released loan balance.
           </p>
 
           {preview.length > 0 && (
@@ -251,6 +278,7 @@ export default function DividendsPage() {
                       <th className="text-right px-3 py-2 font-medium text-gray-600">Int. Paid</th>
                       <th className="text-right px-3 py-2 font-medium text-gray-600">Patronage</th>
                       <th className="text-right px-3 py-2 font-medium text-gray-600">Total</th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-600">Loan Deduct.</th>
                       <th className="text-right px-3 py-2 font-medium text-gray-600">Cash Out</th>
                     </tr>
                   </thead>
@@ -263,6 +291,9 @@ export default function DividendsPage() {
                         <td className="px-3 py-2 text-right text-gray-500">{peso(r.total_interest_paid)}</td>
                         <td className="px-3 py-2 text-right text-purple-700">{peso(r.patronage_refund)}</td>
                         <td className="px-3 py-2 text-right font-semibold text-gray-800">{peso(r.total_earnings)}</td>
+                        <td className="px-3 py-2 text-right text-red-600">
+                          {r.loan_deduction > 0 ? peso(r.loan_deduction) : <span className="text-gray-300">—</span>}
+                        </td>
                         <td className="px-3 py-2 text-right font-bold text-green-700">{peso(r.cash_released)}</td>
                       </tr>
                     ))}
@@ -274,6 +305,9 @@ export default function DividendsPage() {
                       </td>
                       <td className="px-3 py-2 text-right text-xs font-bold text-gray-800">
                         {peso(preview.reduce((s, r) => s + r.total_earnings, 0))}
+                      </td>
+                      <td className="px-3 py-2 text-right text-xs font-bold text-red-600">
+                        {peso(preview.reduce((s, r) => s + r.loan_deduction, 0))}
                       </td>
                       <td className="px-3 py-2 text-right text-xs font-bold text-green-700">
                         {peso(preview.reduce((s, r) => s + r.cash_released, 0))}

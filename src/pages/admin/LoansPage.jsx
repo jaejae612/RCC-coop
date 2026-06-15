@@ -14,6 +14,17 @@ const STATUSES = ['all', 'pending', 'approved', 'released', 'completed', 'reject
 const peso = n => `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
 const date = s => s ? new Date(s).toLocaleDateString('en-PH') : '—'
 
+// Returns true if a released loan has fewer payments than months elapsed since release
+function isOverdue(loan, paymentsByLoan) {
+  if (loan.status !== 'released' || !loan.date_released || !loan.term_months) return false
+  const released  = new Date(loan.date_released)
+  const now       = new Date()
+  const months    = (now.getFullYear() - released.getFullYear()) * 12 + (now.getMonth() - released.getMonth())
+  const expected  = Math.min(months, loan.term_months)
+  const actual    = (paymentsByLoan[loan.id] ?? []).length
+  return expected > 0 && actual < expected
+}
+
 function StatusTab({ value, label, active, count, onClick }) {
   return (
     <button
@@ -45,6 +56,7 @@ export default function LoansPage() {
 
   const [loans,         setLoans]         = useState([])
   const [scores,        setScores]        = useState({}) // member_id → credit result
+  const [paymentsMap,   setPaymentsMap]   = useState({}) // loan_id → payments[]
   const [loading,       setLoading]       = useState(true)
   const [statusFilter,  setStatusFilter]  = useState('all')
   const [search,        setSearch]        = useState('')
@@ -112,6 +124,7 @@ export default function LoansPage() {
 
     setLoans(loans)
     setScores(computed)
+    setPaymentsMap(paymentsByLoan)
     setLoading(false)
   }
 
@@ -135,6 +148,18 @@ export default function LoansPage() {
     if (newStatus === 'approved') update.date_approved = new Date().toISOString().slice(0, 10)
     if (newStatus === 'released') update.date_released = new Date().toISOString().slice(0, 10)
     await supabase.from('loans').update(update).eq('id', loan.id)
+
+    // Audit log
+    await supabase.from('audit_log').insert({
+      action:            `loan_${newStatus}`,
+      table_name:        'loans',
+      record_id:         loan.id,
+      performed_by:      profile?.id,
+      performed_by_role: role,
+      old_value:         { status: loan.status },
+      new_value:         { status: newStatus, ...update },
+      notes:             `Loan #${loan.loan_number} for ${loan.members?.full_name}`,
+    }).catch(() => {})
 
     // Notify the member
     const memberName = loan.members?.full_name ?? 'Member'
@@ -270,7 +295,16 @@ export default function LoansPage() {
                     <td className="px-4 py-3 text-gray-500">
                       {l.term_months ? `${l.term_months}mo` : '—'}
                     </td>
-                    <td className="px-4 py-3"><Badge value={l.status} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge value={l.status} />
+                        {isOverdue(l, paymentsMap) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">
+                            Overdue
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-gray-500">{date(l.date_applied)}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1.5 justify-end flex-wrap">

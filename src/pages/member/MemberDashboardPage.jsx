@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { computeCreditScore, gradeStyle } from '../../lib/creditScore'
@@ -73,7 +74,8 @@ function CreditCard({ cr }) {
 
 export default function MemberDashboardPage() {
   const { profile } = useAuth()
-  const memberName = profile?.members?.full_name ?? profile?.display_name ?? 'Member'
+  const memberName     = profile?.members?.full_name ?? profile?.display_name ?? 'Member'
+  const hasPlaceholder = profile?.email?.endsWith('@rcccoop.com')
 
   const [stats,          setStats]          = useState(null)
   const [creditRating,   setCreditRating]   = useState(null)
@@ -127,6 +129,17 @@ export default function MemberDashboardPage() {
 
   return (
     <div>
+      {hasPlaceholder && (
+        <div className="mb-5 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+          <span className="mt-0.5 shrink-0">⚠</span>
+          <div>
+            Your login email (<strong>{profile.email}</strong>) is a system placeholder.
+            Please update it to your personal email in your{' '}
+            <Link to="/member/profile" className="underline font-medium hover:text-amber-900">Profile settings</Link>.
+          </div>
+        </div>
+      )}
+
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-800">Welcome, {memberName}</h1>
         <p className="text-sm text-gray-500">Your RCC COOP account overview</p>
